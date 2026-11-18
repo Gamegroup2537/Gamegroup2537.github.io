@@ -51,7 +51,7 @@ if (mode === 'preview') {
   }
 } else if (mode === 'frames') {
   const dir = path.join(OUT, process.env.TAG ? `frames_${process.env.TAG}` : 'frames');
-  fs.rmSync(dir, { recursive: true, force: true });
+  if (!rest.length) fs.rmSync(dir, { recursive: true, force: true });
   fs.mkdirSync(dir, { recursive: true });
   const info = await page.evaluate('window.clipInfo');
   const t0 = Date.now();
@@ -64,7 +64,7 @@ if (mode === 'preview') {
     fs.writeFileSync(path.join(dir, `hud_${id}.png`), b64(layers.hud));
     if (f % 120 === 0) console.log(`frame ${f}/${info.FRAMES}  ${((Date.now() - t0) / 1000).toFixed(1)}s`);
   }
-  console.log(`done: ${info.FRAMES} frames in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
+  console.log(`done: frames ${first}-${last} in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
 } else {
   console.log('usage: render.mjs preview <frame...> | frames');
 }

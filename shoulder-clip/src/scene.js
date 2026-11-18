@@ -7,6 +7,7 @@
 //                depth changes, tinted with a muscle's colour while it works
 import * as THREE from 'three';
 import { pose, activation, cameraAt, chXray, HEADS } from './timeline.js';
+import { createBody } from './body.js';
 
 const COL = {
   skin: 0xe4a67c,
@@ -201,7 +202,7 @@ export function createScene(W, H, bgCanvas) {
   scene.add(camera);
   camera.add(new THREE.AmbientLight(0xa0a4e8, 0.72));
   const key = new THREE.DirectionalLight(0xffffff, 2.75);
-  key.position.set(-2.5, 4, 3);
+  key.position.set(-5, 5, 1.5);
   camera.add(key, key.target);
   key.target.position.set(0, 0, -5);
 
@@ -211,7 +212,7 @@ export function createScene(W, H, bgCanvas) {
   const innerPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 10);
   const grad = new THREE.DataTexture(
     // stepped light ramp: shadow -> half tone -> light (texel n covers n.l from -1 to 1)
-    new Uint8Array([105, 105, 120, 142, 178, 218, 255, 255].flatMap((v) => [v, v, v, 255])),
+    new Uint8Array([100, 100, 108, 125, 155, 195, 230, 255].flatMap((v) => [v, v, v, 255])),
     8, 1, THREE.RGBAFormat
   );
   grad.minFilter = grad.magFilter = THREE.NearestFilter;
@@ -229,40 +230,33 @@ export function createScene(W, H, bgCanvas) {
     }
     return m;
   }
-  const skinMat = toon(COL.skin, 'skin');
-  const capMat = toon(COL.skin, 'skin');
-  capMat.emissive = new THREE.Color(HEADS[1].color);
-  capMat.emissiveIntensity = 0;
-  const shortsMat = toon(COL.shorts, 'skin');
-  const bandMat = toon(COL.shortsDark, 'skin');
-  const hairMat = toon(COL.hair, 'skin');
-  const shoeMat = toon(COL.shoe, 'skin');
-  const soleMat = toon(COL.sole, 'skin');
   const boneMat = toon(COL.bone, 'inner');
   const boneFlat = toon(COL.bone, 'inner', { side: THREE.DoubleSide });
   const cartMat = toon(COL.cartilage, 'inner');
   const socketMat = toon(COL.socket, 'inner');
   const teethMat = toon(0xffffff, 'inner');
-  const muscleMat = toon(COL.muscle, 'inner');
-  const deepMat = toon(COL.muscleDeep, 'inner');
   const metalMat = toon(COL.metal);
   const plateMat = toon(COL.plate);
 
   const mesh = (geo, mat) => new THREE.Mesh(geo, mat);
   const cyl = (r0, r1, mat, seg = 8) => mesh(new THREE.CylinderGeometry(r1, r0, 1, seg), mat);
   const ball = (r, mat, detail = 1) => mesh(new THREE.IcosahedronGeometry(r, detail), mat);
-  // Skin parts that share a tag merge into one shape; parts with different tags
-  // are separated by a soft definition line rather than a full ink outline.
-  const sk = (m, tag = 'body') => {
-    m.userData.aux = tag;
-    return m;
-  };
-  const blob = (sx, sy, sz, x, y, z, tag = 'body', mat = skinMat) => {
-    const b = ball(1, mat, 2);
-    b.scale.set(sx, sy, sz);
-    b.position.set(x, y, z);
-    return sk(b, tag);
-  };
+
+  // skin + deep muscles: one continuous ray-marched surface (see body.js)
+  const body = createBody(W, H, {
+    skin: COL.skin,
+    shorts: COL.shorts,
+    shortsDark: COL.shortsDark,
+    shoe: COL.shoe,
+    sole: COL.sole,
+    hair: COL.hair,
+    muscle: COL.muscle,
+    muscleDeep: COL.muscleDeep,
+    blush: 0xff8fb0,
+    ambient: 0xa0a4e8,
+    ambientIntensity: 0.72,
+  });
+  scene.add(body.quad);
 
   // ------------------------------------------------ stage
   const FLOOR_Y = -0.05;
@@ -293,43 +287,12 @@ export function createScene(W, H, bgCanvas) {
   torso.position.set(0, HIP_Y, 0);
   root.add(torso);
 
-  // ------------------------------------------------ lower body (static)
-  root.add(mesh(loft([[0.7, 0.172, 0.12, -0.006], [0.8, 0.18, 0.128, -0.008], [0.9, 0.168, 0.122, -0.006], [0.985, 0.14, 0.1, 0]], 20), shortsMat));
-  root.add(mesh(loft([[0.972, 0.146, 0.104, 0], [1.006, 0.139, 0.099, 0]], 20), bandMat));
+  // ------------------------------------------------ leg bones (static)
   for (const s of [1, -1]) {
     const hipJ = V(s * 0.085, 0.925, 0);
     const troch = V(s * 0.132, 0.9, -0.005);
     const knee = V(s * 0.098, 0.5, 0.012);
     const ankle = V(s * 0.098, 0.075, 0);
-    // athletic leg: quad sweep, teardrop above the knee, hamstring, diamond calf
-    const tag = 'leg' + s;
-    const thigh = sk(cyl(0.05, 0.08, skinMat, 12), tag);
-    between(thigh, knee, V(s * 0.092, 0.8, 0));
-    const shin = sk(cyl(0.034, 0.05, skinMat, 12), tag);
-    between(shin, V(ankle.x, 0.1, 0), knee);
-    root.add(
-      thigh,
-      shin,
-      blob(0.06, 0.17, 0.064, s * 0.106, 0.67, 0.024, tag),
-      blob(0.036, 0.07, 0.04, s * 0.078, 0.565, 0.032, tag),
-      blob(0.05, 0.15, 0.052, s * 0.094, 0.68, -0.034, tag),
-      blob(0.05, 0.05, 0.05, knee.x, knee.y, knee.z, tag),
-      blob(0.047, 0.115, 0.054, s * 0.101, 0.36, -0.026, tag)
-    );
-    // trainers
-    const sock = cyl(0.04, 0.042, shoeMat, 10);
-    between(sock, V(ankle.x, 0.07, 0), V(ankle.x, 0.135, 0));
-    const upper = mesh(new THREE.BoxGeometry(0.1, 0.07, 0.2), shoeMat);
-    upper.position.set(ankle.x, 0.052, 0.03);
-    const toe = ball(1, shoeMat, 2);
-    toe.scale.set(0.05, 0.036, 0.075);
-    toe.position.set(ankle.x, 0.046, 0.13);
-    for (const m of [sock, upper, toe]) sk(m, 'shoe' + s);
-    const sole = mesh(new THREE.BoxGeometry(0.106, 0.022, 0.29), soleMat);
-    sole.position.set(ankle.x, 0.011, 0.055);
-    const sleeve = cyl(0.088, 0.096, shortsMat, 12);
-    between(sleeve, V(s * 0.097, 0.61, 0.004), V(s * 0.092, 0.79, 0));
-    root.add(sock, upper, toe, sole, sleeve);
     // bones
     const fHead = ball(0.025, boneMat);
     fHead.position.copy(hipJ);
@@ -350,78 +313,7 @@ export function createScene(W, H, bgCanvas) {
     heel.position.set(ankle.x, 0.03, -0.01);
     const toes = mesh(new THREE.BoxGeometry(0.06, 0.022, 0.12), boneMat);
     toes.position.set(ankle.x, 0.02, 0.085);
-    // leg muscles
-    const quad = ball(1, muscleMat, 2);
-    quad.scale.set(0.07, 0.19, 0.075);
-    quad.position.set(s * 0.1, 0.7, 0.018);
-    const ham = ball(1, deepMat, 2);
-    ham.scale.set(0.062, 0.17, 0.06);
-    ham.position.set(s * 0.095, 0.7, -0.035);
-    const calf = ball(1, muscleMat, 2);
-    calf.scale.set(0.046, 0.13, 0.05);
-    calf.position.set(knee.x, 0.34, -0.022);
-    root.add(fHead, neck, femur, cond, patella, tibia, fibula, heel, toes, quad, ham, calf);
-  }
-
-  // ------------------------------------------------ torso skin
-  // Athletic build: wide shoulder girdle tapering to a narrow waist.
-  torso.add(sk(mesh(loft([
-    [-0.05, 0.15, 0.106, -0.004],
-    [0.02, 0.145, 0.1, 0],
-    [0.1, 0.127, 0.088, 0.002],
-    [0.17, 0.119, 0.083, 0.004],
-    [0.25, 0.134, 0.094, 0.008],
-    [0.33, 0.156, 0.108, 0.012],
-    [0.41, 0.174, 0.116, 0.014],
-    [0.48, 0.178, 0.108, 0.008],
-    [0.525, 0.15, 0.088, 0],
-    [0.555, 0.088, 0.066, -0.008],
-    [0.585, 0.058, 0.057, -0.008],
-    [0.66, 0.052, 0.055, 0],
-  ], 20), skinMat)));
-  // muscle masses layered on the trunk so the cel shading picks them out
-  for (const s of [1, -1]) {
-    const pec = blob(0.102, 0.058, 0.044, s * 0.084, 0.426, 0.088, 'pec' + s);
-    pec.rotation.z = s * 0.12;
-    const lat = blob(0.046, 0.13, 0.086, s * 0.16, 0.33, -0.024);
-    lat.rotation.z = -s * 0.24;
-    const trap = blob(0.088, 0.04, 0.056, s * 0.086, 0.55, -0.024);
-    trap.rotation.z = -s * 0.42;
-    torso.add(
-      pec,
-      lat,
-      trap,
-      blob(0.03, 0.075, 0.06, s * 0.116, 0.12, 0.012),
-      blob(0.072, 0.095, 0.036, s * 0.096, 0.44, -0.09),
-      blob(0.03, 0.17, 0.03, s * 0.036, 0.2, -0.076)
-    );
-    // collarbone ridge
-    const clavS = blob(0.075, 0.008, 0.011, s * 0.095, 0.522, 0.062, 'clav' + s);
-    clavS.rotation.z = s * 0.16;
-    clavS.rotation.y = -s * 0.22;
-    torso.add(clavS);
-    // six-pack: each cell is outlined with a soft line
-    [[0.302, 0.112], [0.246, 0.1], [0.19, 0.09]].forEach(([y, z], r) => {
-      const ab = sk(mesh(new THREE.BoxGeometry(0.054, 0.044, 0.024), skinMat), `ab${r}${s}`);
-      ab.position.set(s * 0.031, y, z - 0.002);
-      torso.add(ab);
-    });
-    torso.add(
-      blob(0.015, 0.027, 0.018, s * 0.088, 0.742, -0.004),
-      mesh(new THREE.BoxGeometry(0.022, 0.009, 0.008), hairMat).translateX(s * 0.033).translateY(0.75).translateZ(0.089),
-      mesh(new THREE.BoxGeometry(0.03, 0.007, 0.008), hairMat).translateX(s * 0.033).translateY(0.772).translateZ(0.09)
-    );
-  }
-  // head: skull-shaped with a tapered jaw, short hair
-  {
-    const jaw = sk(mesh(new THREE.CylinderGeometry(0.07, 0.044, 0.105, 14), skinMat));
-    jaw.scale.set(1, 1, 0.96);
-    jaw.position.set(0, 0.696, 0.02);
-    const hair = mesh(new THREE.SphereGeometry(0.1, 18, 10, 0, Math.PI * 2, 0, Math.PI * 0.5), hairMat);
-    hair.scale.set(0.95, 1.1, 1.06);
-    hair.position.set(0, 0.765, -0.012);
-    hair.rotation.x = -0.46;
-    torso.add(blob(0.089, 0.104, 0.098, 0, 0.756, 0.0), jaw, blob(0.012, 0.022, 0.014, 0, 0.724, 0.096), hair);
+    root.add(fHead, neck, femur, cond, patella, tibia, fibula, heel, toes);
   }
 
   // ------------------------------------------------ spine
@@ -525,34 +417,13 @@ export function createScene(W, H, bgCanvas) {
       between(isch, V(s * 0.06, -0.13, -0.01), V(s * 0.095, -0.04, -0.01));
       const pubR = cyl(0.011, 0.011, boneMat, 6);
       between(pubR, V(s * 0.008, -0.105, 0.05), V(s * 0.085, -0.045, 0.02));
-      const glute = ball(1, muscleMat, 2);
-      glute.scale.set(0.085, 0.085, 0.068);
-      glute.position.set(s * 0.075, -0.09, -0.06);
-      torso.add(wing, isch, pubR, glute);
+      torso.add(wing, isch, pubR);
     }
     const sacrum = mesh(new THREE.CylinderGeometry(0.052, 0.018, 0.1, 6), boneMat);
     sacrum.scale.set(1, 1, 0.45);
     sacrum.position.set(0, -0.045, -0.072);
     sacrum.rotation.x = 0.25;
     torso.add(sacrum);
-  }
-
-  // ------------------------------------------------ abdomen + neck muscles
-  torso.add(mesh(
-    loft([[-0.04, 0.138, 0.096, 0], [0.06, 0.13, 0.09, 0], [0.17, 0.118, 0.084, 0], [0.25, 0.128, 0.09, 0.004]]),
-    deepMat
-  ));
-  for (let r = 0; r < 4; r++) {
-    for (const s of [1, -1]) {
-      const ab = mesh(new THREE.BoxGeometry(0.046, 0.046, 0.02), muscleMat);
-      ab.position.set(s * 0.027, 0.045 + r * 0.056, 0.088 + (r === 3 ? 0.008 : 0));
-      torso.add(ab);
-    }
-  }
-  {
-    const neckM = cyl(0.05, 0.04, deepMat, 10);
-    between(neckM, V(0, 0.545, -0.03), V(0, 0.66, -0.016));
-    torso.add(neckM);
   }
 
   // ------------------------------------------------ fan / sheet muscles
@@ -692,26 +563,15 @@ export function createScene(W, H, bgCanvas) {
     arm.radius = cyl(0.009, 0.011, boneMat, 6);
     arm.ulna = cyl(0.008, 0.012, boneMat, 6);
     arm.palm = mesh(new THREE.BoxGeometry(0.04, 0.075, 0.04), boneMat);
-    // skin
-    const tU = 'armU' + s;
-    const tF = 'armF' + s;
-    arm.upperS = sk(cyl(0.04, 0.046, skinMat, 12), tU);
-    arm.bicS = sk(ball(1, skinMat, 2), tU);
-    arm.triS = sk(ball(1, skinMat, 2), tU);
-    arm.elbowS = sk(ball(0.04, skinMat, 2), tU);
-    arm.foreS = sk(cyl(0.028, 0.04, skinMat, 12), tF);
-    arm.foreB = sk(ball(1, skinMat, 2), tF);
-    arm.hand = sk(mesh(new THREE.BoxGeometry(0.056, 0.075, 0.06), skinMat), tF);
-    arm.cap = sk(ball(1, capMat, 2), 'delt' + s);
     // dumbbell
     arm.bell = new THREE.Group();
-    arm.bell.add(mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.15, 6), metalMat));
+    arm.bell.add(mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.15, 10), metalMat));
     for (const k of [1, -1]) {
-      const pl = mesh(new THREE.CylinderGeometry(0.052, 0.052, 0.055, 6), plateMat);
+      const pl = mesh(new THREE.LatheGeometry([[0, -0.03], [0.044, -0.03], [0.054, -0.02], [0.054, 0.02], [0.044, 0.03], [0, 0.03]].map(([x, y]) => new THREE.Vector2(x, y)), 20), plateMat);
       pl.position.y = k * 0.075;
       arm.bell.add(pl);
     }
-    torso.add(arm.humerus, arm.humHead, arm.cond, arm.radius, arm.ulna, arm.palm, arm.upperS, arm.bicS, arm.triS, arm.elbowS, arm.foreS, arm.foreB, arm.hand, arm.cap, arm.bell);
+    torso.add(arm.humerus, arm.humHead, arm.cond, arm.radius, arm.ulna, arm.palm, arm.bell);
 
     arm.heads = HEADS.map((hd, hi) => {
       const sh = makeSheet(NU[hi], NT, hd.color, { stripe: 0.8, emissive: true, group: 1 + ai * 3 + hi });
@@ -752,12 +612,6 @@ export function createScene(W, H, bgCanvas) {
       fibre(trap, i, a, c, b);
     }
     commit(trap);
-    arm.biceps = ball(1, muscleMat, 2);
-    arm.triceps = ball(1, deepMat, 2);
-    arm.foreM = cyl(0.024, 0.04, muscleMat, 10);
-    const scm = cyl(0.011, 0.013, muscleMat, 6);
-    between(scm, V(s * 0.022, 0.52, 0.03), V(s * 0.058, 0.67, -0.018));
-    torso.add(arm.biceps, arm.triceps, arm.foreM, scm);
     return arm;
   }
   const arms = [makeArm(1, 0), makeArm(-1, 1)];
@@ -823,24 +677,8 @@ export function createScene(W, H, bgCanvas) {
     between(arm.ulna, ta.copy(E).addScaledVector(nLat, -0.011), tb.copy(Wp).addScaledVector(nLat, -0.01));
     arm.palm.position.copy(Hc);
     arm.palm.quaternion.setFromUnitVectors(UP, vFore);
-    between(arm.upperS, J, E);
-    arm.elbowS.position.copy(E);
-    between(arm.foreS, E, Wp);
-    arm.hand.position.copy(Hc);
-    arm.hand.quaternion.setFromUnitVectors(UP, vFore);
-    arm.bicS.position.copy(J).addScaledVector(vUp, 0.17).addScaledVector(fb, 0.022);
-    arm.bicS.quaternion.copy(q);
-    arm.bicS.scale.set(0.043, 0.1, 0.047);
-    arm.triS.position.copy(J).addScaledVector(vUp, 0.15).addScaledVector(fb, -0.024);
-    arm.triS.quaternion.copy(q);
-    arm.triS.scale.set(0.042, 0.115, 0.045);
-    arm.foreB.position.copy(E).addScaledVector(vFore, 0.085);
-    arm.foreB.quaternion.setFromUnitVectors(UP, vFore);
-    arm.foreB.scale.set(0.045, 0.095, 0.047);
-    // rounded, capped deltoid that follows the arm
-    arm.cap.position.copy(J).addScaledVector(vUp, 0.034).addScaledVector(nLat, 0.014);
-    arm.cap.quaternion.copy(q);
-    arm.cap.scale.set(0.088, 0.104, 0.09);
+    // skin and deep arm muscles are part of the ray-marched body
+    body.setArm(s > 0 ? 0 : 1, torso.matrixWorld, J, E, Wp, Hc, vUp, vFore, fb, nLat);
     arm.bell.position.copy(Hc);
     arm.bell.quaternion.setFromUnitVectors(UP, vHandle);
 
@@ -907,13 +745,6 @@ export function createScene(W, H, bgCanvas) {
       fibre(arm.lat, i, O, Cc, Iu);
     }
     commit(arm.lat);
-    arm.biceps.position.copy(J).addScaledVector(vUp, 0.165).addScaledVector(fb, 0.026);
-    arm.biceps.quaternion.copy(q);
-    arm.biceps.scale.set(0.034, 0.105, 0.036);
-    arm.triceps.position.copy(J).addScaledVector(vUp, 0.155).addScaledVector(fb, -0.03);
-    arm.triceps.quaternion.copy(q);
-    arm.triceps.scale.set(0.036, 0.118, 0.036);
-    between(arm.foreM, ta.copy(E).addScaledVector(vFore, 0.19), tb.copy(E).addScaledVector(vFore, 0.01));
   }
 
   // ------------------------------------------------ particles: chunky pixel sparks off working fibres
@@ -1006,16 +837,10 @@ export function createScene(W, H, bgCanvas) {
   const auxList = [];
   let idCount = 0;
   const idRand = rng(1234);
-  const tagIds = new Map();
   scene.traverse((o) => {
-    if (!o.isMesh || o === scanBar || o === floor) return;
+    if (!o.isMesh || o === scanBar || o === floor || o === body.quad) return;
     idCount++;
     const id4 = new THREE.Vector4(0.1 + idRand() * 0.85, 0.1 + idRand() * 0.85, 0.1 + idRand() * 0.85, 0);
-    const tag = o.userData.aux;
-    if (tag) {
-      if (!tagIds.has(tag)) tagIds.set(tag, id4.clone().setW(200 / 255));
-      id4.copy(tagIds.get(tag));
-    }
     const m = new THREE.ShaderMaterial({
       uniforms: {
         uAux: { value: id4 },
@@ -1093,10 +918,10 @@ export function createScene(W, H, bgCanvas) {
     for (const m of innerMats) m.visible = xr > 0;
     scanBar.visible = xr > 0 && xr < 1;
     scanBar.position.y = scanY;
-    capMat.emissiveIntensity = 0.16 * act[1] * act[1];
     for (let i = 0; i < 3; i++) inkU.uHiAmt.value[i] = xr >= 1 ? Math.min(1, Math.max(0, (act[i] - 0.3) / 0.3)) : 0;
 
     torso.updateMatrixWorld(true);
+    body.update(torso.matrixWorld, p.hinge, scanY, xr < 1, xr > 0, 0.45 * act[1] * act[1]);
     updateArm(arms[1], p, act, xr);
     updateArm(arms[0], p, act, xr); // last, so the scratch vectors hold the +x arm
     const a0 = arms[0];
@@ -1130,7 +955,9 @@ export function createScene(W, H, bgCanvas) {
   };
 
   function render() {
-    // 1. colour
+    // 0. ray-march the body, 1. colour
+    body.prepass(renderer, camera);
+    body.quad.material = body.colorMat;
     renderer.setRenderTarget(colorRT);
     renderer.render(scene, camera);
     // 2. ids + depth
@@ -1142,6 +969,7 @@ export function createScene(W, H, bgCanvas) {
       o.userData.wasVisible = o.visible;
       o.visible = false;
     }
+    body.quad.material = body.auxMat;
     const bg = scene.background;
     scene.background = null;
     renderer.setRenderTarget(auxRT);

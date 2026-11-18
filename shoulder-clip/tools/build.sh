@@ -4,7 +4,16 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 export OUT_DIR="${OUT_DIR:-$PWD/build}"
 mkdir -p "$OUT_DIR" out
-node tools/render.mjs frames
+# The body is ray-marched, so frames are rendered in parallel chunks. Chunks
+# start at moments with no live particles, which keeps the result identical
+# to a single pass.
+rm -rf "$OUT_DIR/frames"
+pids=()
+for range in "0 272" "273 429" "430 584" "585 779" "780 959"; do
+  node tools/render.mjs frames $range &
+  pids+=($!)
+done
+for pid in "${pids[@]}"; do wait "$pid"; done
 node tools/audio.mjs "$OUT_DIR/audio.wav"
 ffmpeg -v error -y \
   -framerate 30 -i "$OUT_DIR/frames/scene_%04d.png" \
