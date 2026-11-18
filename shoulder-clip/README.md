@@ -7,14 +7,19 @@
 
 ## สร้างคลิปใหม่
 
-ต้องมี Node.js, ffmpeg และ Playwright พร้อม Chromium
+ต้องมี Node.js 18 ขึ้นไป และ ffmpeg (Windows: `winget install OpenJS.NodeJS.LTS` และ `winget install Gyan.FFmpeg` แล้วเปิดหน้าต่างคำสั่งใหม่)
 
 ```bash
 npm install
-npm run build            # เรนเดอร์ 960 เฟรม (5 ช่วงขนานกัน ราว 50 นาทีบน CPU) + เสียง แล้วรวมเป็น MP4
-HUD_ONLY=1 npm run build # แก้แค่ข้อความ/กราฟิกบนจอ: ใช้เฟรม 3D เดิม วาดเฉพาะแผงข้อมูลใหม่ (ราว 1 นาที)
+npm run build:gpu        # ใช้การ์ดจอของเครื่อง (เร็ว) จะเปิดหน้าต่าง Chrome หรือ Edge ขึ้นมาระหว่างเรนเดอร์
+npm run build            # ไม่มีการ์ดจอ: เรนเดอร์ด้วย CPU (ช้า ราว 50 นาที)
+npm run build:hud        # แก้แค่ข้อความ/กราฟิกบนจอ: ใช้เฟรม 3D เดิม วาดเฉพาะแผงข้อมูลใหม่
 npm run preview -- 0 180 369   # ดูเฟรมที่ต้องการเป็น PNG ใน build/preview/
 ```
+
+ผลลัพธ์อยู่ที่ `out/shoulder-clip.mp4` ตอนเริ่ม โปรแกรมจะพิมพ์บรรทัด `graphics: ...` บอกว่ากำลังใช้การ์ดจอตัวไหน
+
+ถ้า `build:gpu` ค้างที่เฟรมแรกนานเกินไปหรือภาพผิดปกติ ลองเปลี่ยนตัวขับกราฟิก: `npm run build:gpu -- --angle=gl` (หรือ `d3d11`, `vulkan`) และเลือกเบราว์เซอร์ได้ด้วย `--browser=msedge`
 
 เปิด `index.html?play` ผ่านเว็บเซิร์ฟเวอร์ใดก็ได้เพื่อดูแอนิเมชันสดในเบราว์เซอร์
 

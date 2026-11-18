@@ -99,7 +99,17 @@ window.renderFrame = (f) => {
 window.getLayers = () => ({ scene: HUD_ONLY ? null : sceneCanvas.toDataURL('image/png'), hud: hud.canvas.toDataURL('image/png') });
 
 window.renderFrame(0);
-window.clipInfo = { W, H, HW, HH, FPS, FRAMES };
+// which graphics device the browser is using (shown by the render tool)
+const gpuName = (() => {
+  try {
+    const gl = document.createElement('canvas').getContext('webgl2');
+    const ext = gl.getExtension('WEBGL_debug_renderer_info');
+    return ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER);
+  } catch {
+    return 'unknown';
+  }
+})();
+window.clipInfo = { W, H, HW, HH, FPS, FRAMES, gpu: gpuName };
 window.ready = true;
 
 // live preview when opened in a normal browser

@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "description": "Pixel-art anatomy explainer clip (round shoulders) rendered from code",
   "scripts": {
-    "build": "bash tools/build.sh",
+    "build": "node tools/build.mjs",
+    "build:gpu": "node tools/build.mjs --gpu",
+    "build:hud": "node tools/build.mjs --hud",
     "preview": "node tools/render.mjs preview"
   },
   "license": "ISC",
@@ -17,5 +19,8 @@
     "three": "^0.169.0"
   },
   "type": "module",
-  "private": true
+  "private": true,
+  "devDependencies": {
+    "playwright": "^1.48.0"
+  }
 }
