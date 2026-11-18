@@ -94,7 +94,7 @@ void main() {
   #include <colorspace_fragment>
 }`;
 
-export function createScene(W, H, bgCanvas) {
+export function createScene(W, H, bgCanvas, { forceXray = null } = {}) {
   const canvas = document.createElement('canvas');
   canvas.width = W;
   canvas.height = H;
@@ -392,7 +392,8 @@ export function createScene(W, H, bgCanvas) {
   function update(t) {
     const p = pose(t);
     const act = activation(t);
-    const xr = chXray(t);
+    // ?xray=0|1 pins the layer for comparing skin and anatomy in the same pose
+    const xr = forceXray === null ? chXray(t) : forceXray;
     state.act = act;
     state.armAngle = p.armAngle;
     state.xray = xr;

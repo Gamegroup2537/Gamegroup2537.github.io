@@ -57,7 +57,7 @@ await Promise.all([
   document.fonts.load(`700 24px "${FONT}"`, 'ไหล่กลม ABC 123'),
   document.fonts.load(`600 24px "${FONT}"`, 'ไหล่กลม ABC 123'),
 ]);
-const scene = createScene(W, H, bg, { model: MODEL });
+const scene = createScene(W, H, bg, { forceXray: params.get('xray') === null ? null : Number(params.get('xray')) });
 const hud = createHud({ font: FONT, smooth: SMOOTH, motion: MOTION, tag: params.get('tag') || '' });
 
 const sceneCanvas = document.createElement('canvas');

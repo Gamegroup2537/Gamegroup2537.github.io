@@ -332,13 +332,15 @@ float bones(vec3 p, vec3 q) {
 // Each belly runs from its bony origin to its insertion.
 float upperMuscles(vec3 m) {
   // deep neck + sternocleidomastoid (mastoid -> breastbone)
-  float d = cone(m, vec3(0.0, 0.545, -0.034), 0.04, vec3(0.0, 0.672, -0.016), 0.034);
+  float d = cone(m, vec3(0.0, 0.54, -0.026), 0.047, vec3(0.0, 0.672, -0.012), 0.04);
   d = smin(d, spindle(m, vec3(0.066, 0.7, -0.012), vec3(0.018, 0.52, 0.044), 0.015), 0.006);
   // trapezius: skull base and spine -> outer collarbone, acromion, spine of the shoulder blade
-  d = smin(d, spindle(m, vec3(0.018, 0.7, -0.05), vec3(0.19, 0.556, -0.012), 0.03), 0.02);
-  d = smin(d, sdEll(m - vec3(0.072, 0.57, -0.05), vec3(0.07, 0.045, 0.03)), 0.03);
-  d = smin(d, sdEll(m - vec3(0.07, 0.48, -0.094), vec3(0.068, 0.06, 0.02)), 0.02);
-  d = smin(d, spindle(m, vec3(0.01, 0.23, -0.086), vec3(0.1, 0.5, -0.1), 0.026), 0.02);
+  // (kept just under the skin's neck and shoulder line)
+  d = smin(d, spindle(m, vec3(0.02, 0.685, -0.03), vec3(0.06, 0.585, -0.045), 0.015), 0.03);
+  d = smin(d, sdEll(m - vec3(0.07, 0.546, -0.032), vec3(0.082, 0.031, 0.046)), 0.02);
+  d = smin(d, spindle(m, vec3(0.05, 0.572, -0.035), vec3(0.185, 0.55, -0.012), 0.012), 0.014);
+  d = smin(d, sdEll(m - vec3(0.07, 0.48, -0.088), vec3(0.066, 0.058, 0.018)), 0.02);
+  d = smin(d, spindle(m, vec3(0.01, 0.23, -0.08), vec3(0.1, 0.5, -0.09), 0.018), 0.02);
   // latissimus sheet on the flank (its fibres to the arm are added per pose)
   d = smin(d, sdEll(m - vec3(0.115, 0.23, -0.058), vec3(0.062, 0.15, 0.03)), 0.02);
   // pectoralis major: collarbone and breastbone -> upper arm bone, one fan-shaped slab
@@ -413,7 +415,7 @@ float deltoid(vec3 q, out int hd) {
   if (ba > 0.05) return ba;
   float d = 1e3;
   for (int h = 0; h < 3; h++) {
-    float a = smin(sdDelt(m, uAD[4 * h], uAD[4 * h + 1]), sdDelt(m, uAD[4 * h + 2], uAD[4 * h + 3]), 0.07);
+    float a = smin(sdDelt(m, uAD[4 * h], uAD[4 * h + 1]), sdDelt(m, uAD[4 * h + 2], uAD[4 * h + 3]), 0.04);
     if (a < d) { d = a; hd = h; }
   }
   return d;
@@ -575,7 +577,7 @@ const DELT_ORIGIN = [
   [-0.012, 0.05, -0.056], [-0.086, 0.036, -0.078], // rear
 ];
 const DELT_SCAP = [0.12, 0.22, 0.42, 0.42, 0.42, 0.42]; // how far each origin follows the arm overhead
-const DELT_R = [0.036, 0.04, 0.041, 0.041, 0.039, 0.035];
+const DELT_R = [0.034, 0.037, 0.038, 0.038, 0.036, 0.033];
 const INSERT = [0.018, -0.15, 0]; // deltoid tuberosity, arm hanging
 
 export function createBody(W, H, colors) {
@@ -735,8 +737,9 @@ export function createBody(W, H, colors) {
         const org = V(rel[0] * s, rel[1], rel[2]).applyQuaternion(qS).add(J);
         const hi = k >> 1;
         const len = org.distanceTo(ins);
-        const boost = Math.min(1.45, Math.max(0.85, Math.sqrt(restLen[k] / len)));
-        const r = DELT_R[k] * (1 + 0.22 * act[hi]) * boost;
+        // the belly thickens as it shortens, but never beyond the skin's shoulder cap
+        const boost = Math.min(1.16, Math.max(0.88, Math.sqrt(restLen[k] / len)));
+        const r = DELT_R[k] * (1 + 0.12 * act[hi]) * boost;
         sp(ad, k, org, pt(ins, fb, (2.5 - k) * 0.006), r, 0.24);
         const h = heads[hi];
         (k & 1 ? h.b : h.a).copy(org);
