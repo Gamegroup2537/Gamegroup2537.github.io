@@ -1,0 +1,26 @@
+{
+  "name": "shoulder-clip",
+  "version": "1.0.0",
+  "description": "Pixel-art anatomy explainer clip (round shoulders) rendered from code",
+  "scripts": {
+    "build": "node tools/build.mjs",
+    "build:gpu": "node tools/build.mjs --gpu",
+    "build:hud": "node tools/build.mjs --hud",
+    "preview": "node tools/render.mjs preview"
+  },
+  "license": "ISC",
+  "dependencies": {
+    "@fontsource/chakra-petch": "^5.3.0",
+    "@fontsource/ibm-plex-sans-thai": "^5.3.0",
+    "@fontsource/kanit": "^5.3.0",
+    "@fontsource/mitr": "^5.3.0",
+    "@fontsource/noto-sans-thai": "^5.3.0",
+    "@fontsource/prompt": "^5.3.0",
+    "three": "^0.169.0"
+  },
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "playwright": "^1.48.0"
+  }
+}
