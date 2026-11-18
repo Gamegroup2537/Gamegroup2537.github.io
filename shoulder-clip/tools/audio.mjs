@@ -181,6 +181,13 @@ for (const t of EVENTS.captions) {
 for (const t of EVENTS.labels) blip(t, 96, 0.07, 0.3);
 [81, 84, 88].forEach((m, i) => blip(EVENTS.panelIn + i * 0.06, m, 0.08, -0.3));
 EVENTS.summaryRows.forEach((t, i) => blip(t + 0.02, 84 + i * 4, 0.1, -0.2));
+for (const t of EVENTS.callouts) {
+  // punchy hit for the big one-word cues
+  note(sfx, { type: 'sine', f: 180, f1: 60, t, dur: 0.16, vol: 0.3, a: 0.002, r: 0.08 });
+  note(sfx, { type: 'pulse', duty: 0.25, f: mtof(76), t, dur: 0.07, vol: 0.1, r: 0.05 });
+  note(sfx, { type: 'pulse', duty: 0.25, f: mtof(83), t: t + 0.07, dur: 0.12, vol: 0.1, decay: 0.08, r: 0.06 });
+}
+for (const t of EVENTS.chapters) blip(t + 0.1, 79, 0.07, -0.4);
 blip(EVENTS.cta, 83, 0.12);
 note(sfx, { type: 'pulse', f: mtof(88), t: EVENTS.cta + 0.07, dur: 0.3, vol: 0.12, decay: 0.12, r: 0.1 });
 
@@ -202,6 +209,10 @@ note(sfx, { type: 'saw', f: 70, f1: 900, t: EVENTS.speedUp, dur: 1.0, vol: 0.08,
 // gets denser as each head works harder (one pitch per head)
 {
   const HEAD_F = [988, 740, 554];
+  // typing ticks while each caption writes itself
+  for (const t of EVENTS.captions.slice(1)) {
+    for (let k = 0; k < 9; k++) note(sfx, { type: 'pulse', duty: 0.5, f: 1900 + rnd() * 500, t: t + 0.04 + k * 0.075, dur: 0.008, vol: 0.035, a: 0.001, r: 0.012 });
+  }
   let ph = 0;
   let prevAng = pose(0).armAngle;
   let level = 0;

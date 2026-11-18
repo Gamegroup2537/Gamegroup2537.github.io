@@ -4,9 +4,9 @@ import { FPS, FRAMES } from './timeline.js';
 
 const params = new URLSearchParams(location.search);
 const PIX = Number(params.get('pix') || 3); // size of one 3D "pixel" in the final 1080x1920 frame
-const FONT = params.get('font') || 'Chakra Petch';
+const FONT = params.get('font') || 'Kanit';
 const SMOOTH = params.get('smooth') === '1';
-const MOTION = Number(params.get('motion') || 0);
+const MOTION = Number(params.get('motion') ?? 1);
 const MODEL = params.get('model') || 'a';
 const W = Math.round(1080 / PIX);
 const H = Math.round(1920 / PIX);
@@ -60,7 +60,7 @@ octx.imageSmoothingEnabled = false;
 
 // ordered dithering + palette reduction for the 3D layer
 const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
-const LEVELS = 7;
+const LEVELS = 9;
 function dither() {
   const img = sctx.getImageData(0, 0, W, H);
   const d = img.data;
@@ -98,7 +98,7 @@ window.renderFrame = (f) => {
   scene.render();
   sctx.drawImage(scene.canvas, 0, 0);
   dither();
-  hud.draw(t, scene.state, scene.project);
+  hud.draw(t, scene.state, scene.project, scene.trail(HW, HH));
   octx.drawImage(sceneCanvas, 0, 0, out.width, out.height);
   octx.drawImage(hud.canvas, 0, 0, out.width, out.height);
   return true;

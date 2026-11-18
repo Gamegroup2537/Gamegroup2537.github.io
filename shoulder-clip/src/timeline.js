@@ -35,7 +35,7 @@ const bump = (a, b, t) => sstep(a, a + 0.3, t) * (1 - sstep(b - 0.3, b, t));
 export const HEADS = [
   { key: 'front', th: 'มัดหน้า', color: '#3fd9f2', move: 'OVERHEAD PRESS' },
   { key: 'mid', th: 'มัดกลาง', color: '#ff4fa8', move: 'LATERAL RAISE' },
-  { key: 'rear', th: 'มัดหลัง', color: '#ffc13d', move: 'REVERSE FLY' },
+  { key: 'rear', th: 'มัดหลัง', color: '#8be04e', move: 'REVERSE FLY' },
 ];
 
 // ---------------------------------------------------------------- motion channels
@@ -187,6 +187,22 @@ export const LABELS = [
   { t0: 21.8, t1: 23.2, text: 'ดันขึ้นตรง ๆ', anchor: 'wrist', color: '#e8e8ff', off: [-150, 40] },
 ];
 
+// Big one-word cues at the top of each rep (like a comic "BANG!").
+export const CALLOUTS = [
+  { t0: 12.0, t1: 12.8, text: 'ค้าง!', anchor: 'mid', off: [-70, -66] },
+  { t0: 17.3, t1: 18.1, text: 'บีบ!', anchor: 'rear', off: [70, -70] },
+  { t0: 22.2, t1: 22.8, text: 'ดัน!', anchor: 'belly', off: [-135, -50] },
+];
+
+// Numbered chapter chip, bottom-left.
+export const CHAPTERS = [
+  { t0: 4.6, n: 1, text: 'รู้จัก 3 มัด' },
+  { t0: 9.0, n: 2, text: 'มัดกลาง' },
+  { t0: 14.0, n: 3, text: 'มัดหลัง' },
+  { t0: 19.0, n: 4, text: 'มัดหน้า' },
+  { t0: 24.0, n: 5, text: 'สูตรฝึก' },
+];
+
 export const STATUS = [
   { t0: 0, t1: 3, play: true, text: 'ความเร็วจริง' },
   { t0: 3, t1: 4, play: false, text: 'กำลังสโลว์…' },
@@ -208,6 +224,8 @@ export const PANELS = { bars: [4.6, 24.0], summary: [24.0, 28.0], cta: [28.0, 31
 export const EVENTS = {
   captions: CAPTIONS.map((c) => c.t0),
   labels: LABELS.map((l) => l.t0),
+  callouts: CALLOUTS.map((c) => c.t0),
+  chapters: CHAPTERS.map((c) => c.t0),
   slowDown: 3.0,
   speedUp: 24.0,
   panelIn: 4.6,

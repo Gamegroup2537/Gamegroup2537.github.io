@@ -3,7 +3,7 @@
 //   font   - CSS font family for all text
 //   smooth - true: crisp anti-aliased text; false: alpha-thresholded "pixel" text
 //   motion - 0 pop | 1 wipe/type | 2 slide + spring | 3 glitch/scan
-import { CAPTIONS, LABELS, HEADS, WATERMARK, STATUS, SECTIONS, PANELS } from './timeline.js';
+import { CAPTIONS, LABELS, HEADS, WATERMARK, STATUS, SECTIONS, PANELS, CALLOUTS, CHAPTERS } from './timeline.js';
 
 export const HW = 540;
 export const HH = 960;
@@ -14,6 +14,7 @@ const WHITE = '#f0f0ff';
 const LILAC = '#9c9cd6';
 const CYAN = '#3fd9f2';
 const PINK = '#ff4fa8';
+const GOLD = '#ffd23f';
 const DIM = '#262a58';
 
 const hex = (c) => [parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16)];
@@ -198,15 +199,9 @@ export function createHud({ font = 'Chakra Petch', smooth = false, motion = 0, t
     if (motion === 1) {
       const IN = 0.26;
       const OUT = 0.1;
-      if (rem < OUT && !noOut) {
-        const hh = Math.max(1, Math.round(h * (rem / OUT)));
-        m.drawImage(scratch, x * S, y * S, w * S, h * S, x * S, (y + (h - hh) / 2) * S, w * S, hh * S);
-      } else if (a < IN && !noIn) {
-        const ww = Math.ceil((w * Math.ceil((a / IN) * 10)) / 10);
-        blit(x, y, ww, h);
-        m.fillStyle = CYAN;
-        m.fillRect((x + ww) * S, (y + h * 0.3) * S, 6 * S, h * 0.4 * S);
-      } else blit(x, y, w, h);
+      // typewriter style: boxes pop in (optionally with a wipe), the text types itself
+      if (o.wipe && a < IN && !noIn) blit(x, y, Math.ceil((w * Math.ceil((a / IN) * 10)) / 10), h);
+      else blit(x, y, w, h);
     } else if (motion === 2) {
       const IN = 0.42;
       const OUT = 0.16;
@@ -247,18 +242,19 @@ export function createHud({ font = 'Chakra Petch', smooth = false, motion = 0, t
     } else blit(x, y, w, h);
   }
   // Entrance animation for a part inside an element (e.g. the panel title).
-  function sub(age, x, y, w, h, paint) {
-    const IN = 0.32;
+  function sub(age, x, y, w, h, paint, IN = 0.32) {
     if (age < 0) return;
     if (motion === 0 || age >= IN) return paint(0);
     const p = age / IN;
     if (motion === 1) {
       g.save();
       g.beginPath();
-      g.rect(x, y, Math.ceil((w * Math.ceil(p * 8)) / 8), h);
+      const ww = Math.ceil((w * Math.ceil(p * 12)) / 12);
+      g.rect(x, y, ww, h);
       g.clip();
       paint(0);
       g.restore();
+      rect(x + ww + 1, y + h * 0.25, 5, h * 0.55, GOLD); // cursor
     } else if (motion === 2) {
       g.globalAlpha = Math.min(1, p * 2);
       paint((1 - backOut(p)) * -24);
@@ -286,7 +282,7 @@ export function createHud({ font = 'Chakra Petch', smooth = false, motion = 0, t
       text(st.text, 30, 43, 17, color);
     }, { noOut: true });
     if (st.x && Math.floor(now * 6) % 2 === 0) {
-      element([HW - 90, 20, 84, 44], st.t0, st.t1, () => text(st.x, HW - 14, 52, 34, CYAN, 'r'), { noIn: true, noOut: true });
+      element([HW - 90, 20, 84, 44], st.t0, st.t1, () => text(st.x, HW - 14, 52, 34, GOLD, 'r'), { noIn: true, noOut: true });
     }
   }
 
@@ -302,10 +298,16 @@ export function createHud({ font = 'Chakra Petch', smooth = false, motion = 0, t
     element([x, y, w, h], c.t0, c.t1, () => {
       frame(x, y, w, h, motion === 0 && now - c.t0 < 0.07 ? CYAN : WHITE, 2);
       const base = y + (c.big ? 12 : 8) + Math.round(lh * 0.74);
-      text(c.l1, HW / 2, base, px, WHITE, 'c');
+      const typed = motion === 1 && c.t0 > 0;
+      const w1 = width(c.l1, px);
+      const w2 = width(c.l2, px);
+      const d1 = typed ? Math.min(0.5, c.l1.length * 0.024) : 0.32;
+      const d2 = typed ? Math.min(0.5, c.l2.length * 0.024) : 0.32;
+      const age1 = typed ? now - c.t0 : 9;
+      sub(age1, HW / 2 - w1 / 2 - 2, base - lh + 6, w1 + 4, lh, () => text(c.l1, HW / 2, base, px, WHITE, 'c'), d1);
       // the second line follows the first in the animated styles
-      const age2 = motion && c.t0 > 0 ? now - c.t0 - 0.18 : 1;
-      sub(age2, x + 8, base + 6, w - 16, lh, (dx) => text(c.l2, HW / 2 + dx, base + lh, px, CYAN, 'c'));
+      const age2 = motion && c.t0 > 0 ? now - c.t0 - (typed ? d1 : 0.18) : 9;
+      sub(age2, HW / 2 - w2 / 2 - 2, base + 6, w2 + 4, lh, (dx) => text(c.l2, HW / 2 + dx, base + lh, px, GOLD, 'c'), d2);
     });
   }
 
@@ -434,21 +436,81 @@ export function createHud({ font = 'Chakra Petch', smooth = false, motion = 0, t
         rect(cx + Math.sin(a) * (r - 13), cy + Math.cos(a) * (r - 13), 2, 2, PINK);
       }
       const a = (Math.max(0, Math.min(180, angle)) * Math.PI) / 180;
-      line(cx, cy, cx + Math.sin(a) * (r - 14), cy + Math.cos(a) * (r - 14), CYAN, 2);
+      line(cx, cy, cx + Math.sin(a) * (r - 14), cy + Math.cos(a) * (r - 14), GOLD, 2);
       disc(cx, cy, 3, WHITE);
-      text(`${Math.round(angle)}°`, cx - 7, cy + 2, 23, CYAN, 'r');
+      text(`${Math.round(angle)}°`, cx - 7, cy + 2, 23, GOLD, 'r');
       const lw = width('มุมแขน', 16) + 14;
       frame(cx - lw / 2, cy - r - 30, lw, 25, '#5a5ea8', 1);
       text('มุมแขน', cx, cy - r - 12, 16, WHITE, 'c');
     });
   }
 
-  function draw(t, state, project) {
+  // dotted arc + arrowhead that follows the dumbbell, showing the direction of travel
+  function drawTrail(pts) {
+    if (!pts || pts.length < 6) return;
+    const [x1, y1] = pts[pts.length - 1];
+    const [x0, y0] = pts[0];
+    if (Math.hypot(x1 - x0, y1 - y0) < 26) return;
+    const xs = pts.map((p) => p[0]);
+    const ys = pts.map((p) => p[1]);
+    const bx = Math.min(...xs) - 12;
+    const by = Math.min(...ys) - 12;
+    element([bx, by, Math.max(...xs) - bx + 12, Math.max(...ys) - by + 12], -1, 1e9, () => {
+      for (let i = 0; i < pts.length - 2; i += 2) {
+        const k = i / pts.length;
+        rect(pts[i][0] - 1, pts[i][1] - 1, 3, 3, k < 0.35 ? '#6b5a1c' : k < 0.7 ? '#b8962c' : GOLD);
+      }
+      const [px, py] = pts[pts.length - 4];
+      const d = Math.hypot(x1 - px, y1 - py) || 1;
+      const ux = (x1 - px) / d;
+      const uy = (y1 - py) / d;
+      const tx = x1 + ux * 16;
+      const ty = y1 + uy * 16;
+      for (let i = 0; i < 9; i++) {
+        const hw = (9 - i) * 0.9;
+        line(tx - ux * (9 - i) - uy * hw, ty - uy * (9 - i) + ux * hw, tx - ux * (9 - i) + uy * hw, ty - uy * (9 - i) - ux * hw, GOLD, 2);
+      }
+    });
+  }
+
+  function drawCallouts(project) {
+    for (const c of CALLOUTS) {
+      if (now < c.t0 || now >= c.t1) continue;
+      const [ax, ay] = project(c.anchor, HW, HH);
+      const age = now - c.t0;
+      const px = 40;
+      const w = width(c.text, px);
+      const jig = age < 0.2 ? Math.round((hash(Math.floor(now * 30)) - 0.5) * 8) : 0;
+      const cx = Math.max(w / 2 + 10, Math.min(HW - w / 2 - 10, ax + c.off[0])) + jig;
+      const cy = Math.max(200, Math.min(590, ay + c.off[1]));
+      element([cx - w / 2 - 6, cy - px, w + 14, px + 22], c.t0, c.t1, () => {
+        for (const [ox, oy] of [[3, 3], [-2, 0], [2, 0], [0, -2], [0, 2]]) text(c.text, cx + ox, cy + oy, px, INK, 'c');
+        text(c.text, cx, cy, px, GOLD, 'c');
+      }, { noIn: true, noOut: true });
+    }
+  }
+
+  function drawChapter() {
+    const c = CHAPTERS.find((k) => now >= k.t0 && now < k.t0 + 2.4);
+    if (!c) return;
+    const tw = width(c.text, 20);
+    const w = tw + 62;
+    element([12, 826, w, 44], c.t0, c.t0 + 2.4, () => {
+      frame(12, 826, w, 44, WHITE, 2);
+      text(String(c.n), 26, 859, 30, GOLD);
+      sub(motion === 1 ? now - c.t0 - 0.1 : 9, 54, 834, tw + 4, 30, () => text(c.text, 56, 856, 20, WHITE), Math.min(0.5, c.text.length * 0.035));
+    }, { wipe: true });
+  }
+
+  function draw(t, state, project, trail) {
     now = t;
     m.clearRect(0, 0, HW * S, HH * S);
+    drawTrail(trail);
     drawLabels(project);
+    drawCallouts(project);
     drawPanel(state.act);
     drawGauge(state.armAngle);
+    drawChapter();
     drawCaption();
     drawStatus();
     if (tag) {

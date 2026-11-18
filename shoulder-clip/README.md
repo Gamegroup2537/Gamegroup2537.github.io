@@ -21,9 +21,9 @@ npm run preview -- 0 180 369   # ดูเฟรมที่ต้องกา�
 
 | ไฟล์ | หน้าที่ |
 |---|---|
-| `src/timeline.js` | แหล่งความจริงเดียว: ท่าทาง การทำงานของกล้ามเนื้อ กล้อง คำบรรยาย ป้ายชี้ |
-| `src/scene.js` | หุ่น 3D โครงกระดูก และเดลทอยด์ 3 มัด (Three.js เรนเดอร์ที่ 270×480) |
-| `src/hud.js` | แผงข้อความภาษาไทยแบบพิกเซล แถบกล้ามเนื้อ มาตรวัดมุมแขน |
+| `src/timeline.js` | แหล่งความจริงเดียว: ท่าทาง การทำงานของกล้ามเนื้อ กล้อง คำบรรยาย ป้ายชี้ คำเน้น ป้ายตอน |
+| `src/scene.js` | หุ่น 3D โครงกระดูก กล้ามเนื้อ และเดลทอยด์ 3 มัด เรนเดอร์ 3 รอบ: สีแบบ cel shading, รหัสชิ้นส่วน + ความลึก, แล้ววาดเส้นขอบหมึก |
+| `src/hud.js` | แผงข้อความภาษาไทย แถบกล้ามเนื้อ มาตรวัดมุมแขน ลูกศรทิศการเคลื่อนไหว |
 | `src/main.js` | รวมเลเยอร์ + ordered dithering |
 | `tools/render.mjs` | เรนเดอร์ทีละเฟรมแบบ deterministic ด้วย Playwright |
 | `tools/audio.mjs` | สังเคราะห์เพลง chiptune และเสียงเอฟเฟกต์เป็น WAV |
@@ -31,8 +31,13 @@ npm run preview -- 0 180 369   # ดูเฟรมที่ต้องกา�
 
 ## ปรับแต่ง
 
-- ข้อความบนจอ: `CAPTIONS` และ `LABELS` ใน `src/timeline.js`
+- ข้อความบนจอ: `CAPTIONS`, `LABELS`, `CALLOUTS`, `CHAPTERS` ใน `src/timeline.js`
 - ลายน้ำชื่อช่อง: ตั้งค่า `WATERMARK` ใน `src/timeline.js`
 - สีของแต่ละมัดกล้ามเนื้อ: `HEADS` ใน `src/timeline.js`
+- รูปลักษณ์ เลือกผ่านตัวแปร `QUERY` ตอนเรนเดอร์ เช่น `QUERY="font=Mitr&smooth=1&motion=2" npm run build`
+  - `font`: Kanit (ค่าเริ่มต้น), Prompt, Mitr, IBM Plex Sans Thai, Chakra Petch
+  - `smooth`: `1` = ตัวอักษรคมชัด, ไม่ใส่ = ตัวอักษรแบบพิกเซล
+  - `motion`: `0` ปรากฏทันที, `1` พิมพ์ทีละตัว (ค่าเริ่มต้น), `2` สไลด์เด้ง, `3` กลิตช์
+  - `pix`: ขนาดพิกเซลของภาพ 3D (ค่าเริ่มต้น 3)
 
-ฟอนต์ Chakra Petch (SIL Open Font License) ติดตั้งผ่าน `@fontsource/chakra-petch`
+ฟอนต์ทั้งหมดเป็น SIL Open Font License ติดตั้งผ่านแพ็กเกจ `@fontsource/*`
