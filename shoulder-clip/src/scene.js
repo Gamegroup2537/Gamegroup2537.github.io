@@ -21,9 +21,11 @@ const COL = {
   socket: 0x1a1740,
   metal: 0x7a7da8,
   plate: 0xd0243c,
-  floor: 0x121440,
-  podium: 0x232a72,
-  grid: 0x1e2260,
+  floor: 0x090d1f,
+  floorIn: 0x0f1530,
+  podium: 0x1c2760,
+  grid: 0x18224e,
+  rim: 0xa8ecff,
   muscle: 0x8587bd,
   muscleDeep: 0x6567a0,
   ink: 0x15133a,
@@ -130,6 +132,7 @@ uniform vec2 uTexel;
 uniform float uNear;
 uniform float uFar;
 uniform vec3 uInk;
+uniform vec3 uRim;
 uniform vec3 uHi[3];
 uniform float uHiAmt[3];
 varying vec2 vUv;
@@ -138,6 +141,7 @@ float lin(float d) {
   return 2.0 * uNear * uFar / (uFar + uNear - z * (uFar - uNear));
 }
 // which deltoid head (0..2) an aux sample belongs to, or -1
+bool isBg(vec4 a) { return a.r + a.g + a.b + a.a < 0.001; }
 float headOf(vec4 a) {
   float g = floor(a.a * 255.0 + 0.5);
   return (g >= 1.0 && g <= 6.0) ? mod(g - 1.0, 3.0) : -1.0;
@@ -168,6 +172,9 @@ void main() {
     int k = int(h + 0.5);
     line = mix(uInk, uHi[k], uHiAmt[k]);
   }
+  // silhouette against the backdrop gets a light rim so the figure lifts off it
+  bool b0 = isBg(a0);
+  if (b0 != isBg(a1) || b0 != isBg(a2)) line = mix(uRim, line, h >= 0.0 ? uHiAmt[int(h + 0.5)] : 0.0);
   col = mix(col, col * 0.62, fibre * (1.0 - outer));
   col = mix(col, line, outer);
   gl_FragColor = vec4(col, 1.0);
@@ -260,6 +267,7 @@ export function createScene(W, H, bgCanvas) {
 
   // ------------------------------------------------ stage
   const FLOOR_Y = -0.05;
+  const decor = []; // flat stage dressing: drawn in colour only, never outlined
   const floor = mesh(new THREE.CircleGeometry(1.7, 40), new THREE.MeshBasicMaterial({ color: COL.floor }));
   floor.rotation.x = -Math.PI / 2;
   floor.position.y = FLOOR_Y;
@@ -275,9 +283,21 @@ export function createScene(W, H, bgCanvas) {
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
     scene.add(new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: COL.grid })));
-    const podium = mesh(new THREE.CylinderGeometry(0.46, 0.5, 0.05, 20), toon(COL.podium));
+    const podium = mesh(new THREE.CylinderGeometry(0.46, 0.5, 0.05, 32), toon(COL.podium));
     podium.position.y = FLOOR_Y + 0.025;
     scene.add(podium);
+    // pool of light on the floor, glowing podium edge and a contact shadow
+    const flat = (geo, color, y) => {
+      const m = mesh(geo, new THREE.MeshBasicMaterial({ color }));
+      m.rotation.x = -Math.PI / 2;
+      m.position.y = y;
+      scene.add(m);
+      decor.push(m);
+    };
+    flat(new THREE.CircleGeometry(0.95, 40), COL.floorIn, FLOOR_Y + 0.001);
+    flat(new THREE.RingGeometry(0.5, 0.515, 48), 0x3fd9f2, FLOOR_Y + 0.003);
+    flat(new THREE.RingGeometry(0.455, 0.465, 48), 0x3fd9f2, FLOOR_Y + 0.0505);
+    flat(new THREE.CircleGeometry(0.26, 28).scale(1, 0.78, 1), 0x0c1230, FLOOR_Y + 0.0508);
   }
 
   const root = new THREE.Group();
@@ -838,7 +858,7 @@ export function createScene(W, H, bgCanvas) {
   let idCount = 0;
   const idRand = rng(1234);
   scene.traverse((o) => {
-    if (!o.isMesh || o === scanBar || o === floor || o === body.quad) return;
+    if (!o.isMesh || o === scanBar || o === floor || o === body.quad || decor.includes(o)) return;
     idCount++;
     const id4 = new THREE.Vector4(0.1 + idRand() * 0.85, 0.1 + idRand() * 0.85, 0.1 + idRand() * 0.85, 0);
     const m = new THREE.ShaderMaterial({
@@ -863,7 +883,7 @@ export function createScene(W, H, bgCanvas) {
   scene.traverse((o) => {
     if (o.isSprite || o.isPoints || o.isLineSegments) hidden.push(o);
   });
-  hidden.push(scanBar, floor);
+  hidden.push(scanBar, floor, ...decor);
 
   // ------------------------------------------------ ink pass
   const inkU = {
@@ -874,6 +894,7 @@ export function createScene(W, H, bgCanvas) {
     uNear: { value: camera.near },
     uFar: { value: camera.far },
     uInk: { value: new THREE.Color(COL.ink) },
+    uRim: { value: new THREE.Color(COL.rim) },
     uHi: { value: HEADS.map((h) => new THREE.Color(h.color).lerp(white, 0.55)) },
     uHiAmt: { value: [0, 0, 0] },
   };

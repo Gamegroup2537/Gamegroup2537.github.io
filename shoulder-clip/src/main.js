@@ -12,22 +12,45 @@ const HUD_ONLY = params.get('hud') === '1'; // skip the slow 3D pass when only t
 const W = Math.round(1080 / PIX);
 const H = Math.round(1920 / PIX);
 
-// ---- static backdrop: flat navy with a few flat curtain bands (no gradients, no dither)
+// ---- static backdrop: near-black navy with a stepped spotlight behind the figure.
+// Flat bands only (no gradients), cooler than the figure so it separates by hue and value.
 const bg = document.createElement('canvas');
 bg.width = W;
 bg.height = H;
 {
   const x = bg.getContext('2d');
-  x.fillStyle = '#10122f';
+  x.fillStyle = '#05070f';
   x.fillRect(0, 0, W, H);
-  let seed = 11;
-  const r = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
-  for (let i = 0; i < W; ) {
-    const w = 4 + Math.floor(r() * 10);
-    x.fillStyle = r() > 0.5 ? '#0d0f29' : '#131638';
-    x.fillRect(i, 0, w, Math.round(H * (0.2 + r() * 0.26)));
-    i += w + 3 + Math.floor(r() * 9);
+  const cx = W / 2;
+  const cy = H * 0.4;
+  const steps = [
+    [1.05, 0.66, '#070a17'],
+    [0.86, 0.54, '#0a0e21'],
+    [0.68, 0.43, '#0d132c'],
+    [0.52, 0.33, '#111938'],
+    [0.37, 0.24, '#152045'],
+    [0.23, 0.15, '#1a2852'],
+  ];
+  for (const [rx, ry, col] of steps) {
+    x.fillStyle = col;
+    x.beginPath();
+    x.ellipse(cx, cy, W * rx, H * ry, 0, 0, Math.PI * 2);
+    x.fill();
   }
+  // snap the anti-aliased band edges back to flat colours
+  const img = x.getImageData(0, 0, W, H);
+  const d = img.data;
+  const pal = ['#05070f', ...steps.map((s) => s[2])].map((h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)]);
+  for (let i = 0; i < d.length; i += 4) {
+    let best = 0;
+    let bd = 1e9;
+    pal.forEach((c, k) => {
+      const e = Math.abs(d[i] - c[0]) + Math.abs(d[i + 1] - c[1]) + Math.abs(d[i + 2] - c[2]);
+      if (e < bd) { bd = e; best = k; }
+    });
+    d[i] = pal[best][0]; d[i + 1] = pal[best][1]; d[i + 2] = pal[best][2];
+  }
+  x.putImageData(img, 0, 0);
 }
 
 await Promise.all([
