@@ -78,6 +78,7 @@ uniform mat3 uViewRot;
 uniform vec3 uCam;
 uniform float uHinge;
 uniform float uScanY;
+uniform float uSplit; // 1 = reveal the inside on the figure's left half instead (cover image)
 uniform float uSkinOn;
 uniform float uMusOn;
 uniform float uBlush;
@@ -434,6 +435,8 @@ float bells(vec3 q) {
   return min(sdCone(m, uBell[0], uBell[1]), min(sdCone(m, uBell[2], uBell[3]), sdCone(m, uBell[4], uBell[5])));
 }
 
+// > 0 where the inside is shown, < 0 where the skin is kept
+float reveal(vec3 p) { return uSplit > 0.5 ? p.x : p.y - uScanY; }
 float skinAll(vec3 p, vec3 q) { return min(min(skinBody(p, q), shorts(p)), min(shoes(p), hair(q))); }
 float innerAll(vec3 p, vec3 q) {
   int a;
@@ -442,8 +445,8 @@ float innerAll(vec3 p, vec3 q) {
 float map(vec3 p) {
   vec3 q = toTorso(p);
   float d = bells(q);
-  if (uSkinOn > 0.5) d = min(d, max(skinAll(p, q), p.y - uScanY)); // skin survives below the scan plane
-  if (uMusOn > 0.5) d = min(d, max(innerAll(p, q), uScanY - p.y));
+  if (uSkinOn > 0.5) d = min(d, max(skinAll(p, q), reveal(p))); // skin survives below the scan plane
+  if (uMusOn > 0.5) d = min(d, max(innerAll(p, q), -reveal(p)));
   return d;
 }
 vec3 normalAt(vec3 p) {
@@ -511,11 +514,11 @@ void main() {
   float gloss = 0.16;
 
   float dBell = bells(q);
-  float dSkinAll = uSkinOn > 0.5 ? max(skinAll(p, q), p.y - uScanY) : 1e3;
+  float dSkinAll = uSkinOn > 0.5 ? max(skinAll(p, q), reveal(p)) : 1e3;
   int hd = 0;
   float dD = 1e3; float dBn = 1e3; float dMs = 1e3;
   if (uMusOn > 0.5) { dD = deltoid(q, hd); dBn = bones(p, q); dMs = muscles(p, q); }
-  float dInAll = uMusOn > 0.5 ? max(min(dD, min(dBn, dMs)), uScanY - p.y) : 1e3;
+  float dInAll = uMusOn > 0.5 ? max(min(dD, min(dBn, dMs)), -reveal(p)) : 1e3;
 
   if (dBell <= min(dSkinAll, dInAll)) {
     // dumbbell: red plates on a steel bar
@@ -580,7 +583,7 @@ void main() {
   // flat highlight shape, the same on every material
   if (gloss > 0.0 && dot(vn, normalize(L + vec3(0.0, 0.0, 1.0))) > 0.978) col = mix(col, vec3(1.0), gloss);
   // the scan plane's cut through the body glows
-  if (uSkinOn > 0.5 && uMusOn > 0.5 && abs(p.y - uScanY) < 0.004 && abs(n.y) > 0.8) col = vec3(0.35, 0.87, 1.0);
+  if (uSkinOn > 0.5 && uMusOn > 0.5 && abs(reveal(p)) < 0.004 && abs(uSplit > 0.5 ? n.x : n.y) > 0.8) col = vec3(0.35, 0.87, 1.0);
   vec4 clip = uVP * vec4(p, 1.0);
   gl_FragColor = vec4(col, clip.z / clip.w * 0.5 + 0.5);
   gAux = aux;
@@ -652,6 +655,7 @@ export function createBody(W, H, colors) {
     uCam: { value: new THREE.Vector3() },
     uHinge: { value: 0 },
     uScanY: { value: 10 },
+    uSplit: { value: 0 },
     uSkinOn: { value: 1 },
     uMusOn: { value: 0 },
     uBlush: { value: 0 },
@@ -806,7 +810,8 @@ export function createBody(W, H, colors) {
         h.r = 0.012;
       });
     },
-    update(hinge, scanY, skinOn, musOn, blush, act) {
+    update(hinge, scanY, skinOn, musOn, blush, act, split = false) {
+      U.uSplit.value = split ? 1 : 0;
       U.uHinge.value = hinge;
       U.uScanY.value = scanY;
       U.uSkinOn.value = skinOn ? 1 : 0;

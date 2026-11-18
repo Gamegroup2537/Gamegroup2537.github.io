@@ -35,6 +35,8 @@ Times are seconds from 0 to `DURATION` (32). Frame number = seconds x 30.
 - `HEADS` `{ key, th, color, move }` - the 2-3 compared things: name, accent colour, and the line shown in the summary
 - `WATERMARK` - channel name
 
+**Cover.** `COVER` `{ t, split, xray, act, cam, kicker, title, sub, tags, footer }` - the thumbnail. `t` picks the pose, `cam` the view, `split: true` shows the outside on one half of the subject and the inside on the other (keep `cam.az` at 0 so the cut is edge-on), `sub` is three strings whose middle one is highlighted, `tags` get the accent colours of `HEADS` in order.
+
 **Sound.** `EVENTS` lists the moments the soundtrack reacts to; it is derived from the lists above, so sounds follow text automatically.
 
 ## Changing things
@@ -53,6 +55,7 @@ Times are seconds from 0 to `DURATION` (32). Frame number = seconds x 30.
 
 - `node tools/render.mjs preview 30 200 366` - stills into `build/preview/`
 - `node tools/render.mjs bench 30 366` - milliseconds per frame
+- `node tools/render.mjs cover` - the cover image to `out/cover.png`; `QUERY="cam=0,22,4.8,0,1.5,0&ct=11.3"` tries another view or moment
 - `QUERY="xray=1"` - pin the inside layer on (0 = outside only), for overlays
 - `QUERY="hud=1"` - skip the 3D pass
 - `GPU=1` - render through an installed Chrome/Edge with hardware acceleration; `ANGLE=gl|d3d11|vulkan` if the default backend misbehaves

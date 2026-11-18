@@ -14,7 +14,8 @@ Collect these before building. Items marked * are required; draft the rest yours
 | 8 | **Language**, and whether technical terms stay in English | Captions are short; mixed Thai + English terms is common and fine. |
 | 9 | **Channel name / watermark** | `WATERMARK` in the timeline. Never copy another channel's mark. |
 | 10 | **Call to action** | The last four seconds. |
-| 11 | **Source for the facts** | So claims can be checked. Flag anything that is contested or simplified. |
+| 11 | **Cover headline**: the result in 1-2 words, plus a promise with a number in it | The cover is what gets the click. Draft it from items 1-3 if the user has none. |
+| 12 | **Source for the facts** | So claims can be checked. Flag anything that is contested or simplified. |
 
 ## Shape of the 32 seconds
 

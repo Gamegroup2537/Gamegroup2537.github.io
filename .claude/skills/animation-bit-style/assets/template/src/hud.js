@@ -820,5 +820,65 @@ export function createHud({ font = 'Chakra Petch', smooth = false, motion = 0, t
     if (WATERMARK) element([8, 580, 300, 26], -1, 1e9, () => text(WATERMARK, 10, 598, 16, '#7f81bd', 'l', 600));
   }
 
-  return { canvas, draw };
+  // ---------------------------------------------------------------- cover image
+  // text with a dark outline and a hard shadow, readable over anything
+  function outlined(str, x, y, px, color, align = 'c') {
+    const o = Math.max(2, Math.round(px / 16));
+    text(str, x + o + 2, y + o + 3, px, '#000008', align);
+    for (let dx = -o; dx <= o; dx += o) for (let dy = -o; dy <= o; dy += o) if (dx || dy) text(str, x + dx, y + dy, px, INK, align);
+    text(str, x, y, px, color, align);
+  }
+  function drawCover(c, project) {
+    now = 0;
+    m.clearRect(0, 0, HW * S, HH * S);
+    g.clearRect(0, 0, HW, HH);
+    // a row of numbered tags, one per compared thing, in its accent colour
+    const tw = c.tags.map((tg) => Math.max(width(tg.text, 24), width(tg.sub, 13)) + 50);
+    const gap = 8;
+    let tx = Math.round((HW - (tw.reduce((a, b) => a + b, 0) + gap * (c.tags.length - 1))) / 2);
+    const ty = 700;
+    c.tags.forEach((tg, i) => {
+      const color = HEADS[i].color;
+      const w = tw[i];
+      withAlpha(0.6, () => rect(tx + 4, ty + 4, w, 56, '#000008'));
+      frame(tx, ty, w, 56, color, 3);
+      rect(tx, ty, 36, 56, color);
+      text(String(tg.n), tx + 18, ty + 40, 34, INK, 'c');
+      text(tg.text, tx + 43, ty + 28, 24, WHITE);
+      text(tg.sub, tx + 43, ty + 46, 13, color);
+      tx += w + gap;
+    });
+    // headline
+    if (c.kicker) {
+      const kw = width(c.kicker, 22) + 28;
+      rect(HW / 2 - kw / 2 + 4, 116, kw, 34, '#000008');
+      rect(HW / 2 - kw / 2, 112, kw, 34, PINK);
+      text(c.kicker, HW / 2, 137, 22, INK, 'c');
+    }
+    let px = 118;
+    while (width(c.title, px) > HW - 56 && px > 40) px -= 4;
+    outlined(c.title, HW / 2, 152 + px * 0.86, px, GOLD);
+    const sy = 152 + px * 0.86 + 62;
+    const ws = c.sub.map((part) => width(part, 44));
+    let x = HW / 2 - ws.reduce((a, b) => a + b, 0) / 2;
+    c.sub.forEach((part, i) => {
+      outlined(part, x, sy, 44, i === 1 ? GOLD : WHITE, 'l');
+      x += ws[i];
+    });
+    // footer strip with a play mark
+    if (c.footer) {
+      const fw = width(c.footer, 28) + 74;
+      const fx = HW / 2 - fw / 2;
+      const fy = 776;
+      withAlpha(0.6, () => rect(fx + 5, fy + 5, fw, 52, '#000008'));
+      frame(fx, fy, fw, 52, GOLD, 3);
+      brackets(fx - 7, fy - 7, fw + 14, 66, CYAN, 14, 3);
+      for (let i = 0; i < 11; i++) rect(fx + 18 + i, fy + 15 + i, 1, 22 - 2 * i, GOLD);
+      text(c.footer, fx + 42 + (fw - 60) / 2, fy + 37, 28, WHITE, 'c');
+    }
+    if (WATERMARK) outlined(WATERMARK, HW / 2, 868, 20, WHITE);
+    m.drawImage(scratch, 0, 0);
+  }
+
+  return { canvas, draw, drawCover };
 }

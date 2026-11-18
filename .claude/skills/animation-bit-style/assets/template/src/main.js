@@ -1,6 +1,6 @@
 import { createScene } from './scene.js';
 import { createHud, HW, HH } from './hud.js';
-import { FPS, FRAMES } from './timeline.js';
+import { FPS, FRAMES, COVER } from './timeline.js';
 
 const params = new URLSearchParams(location.search);
 const PIX = Number(params.get('pix') || 3); // size of one 3D "pixel" in the final 1080x1920 frame
@@ -8,6 +8,13 @@ const FONT = params.get('font') || 'Kanit';
 const SMOOTH = params.get('smooth') === '1';
 const MOTION = Number(params.get('motion') ?? 1);
 const MODEL = params.get('model') || 'a';
+const COVER_MODE = params.get('cover') === '1'; // render the cover image instead of the clip
+// for trying cover compositions: cam=az,el,d,tx,ty,tz and ct=seconds override the COVER settings
+if (COVER_MODE && params.get('cam')) {
+  const [az, el, d, tx, ty, tz] = params.get('cam').split(',').map(Number);
+  COVER.cam = { az, el, d, tx, ty, tz };
+}
+if (COVER_MODE && params.get('ct')) COVER.t = Number(params.get('ct'));
 const HUD_ONLY = params.get('hud') === '1'; // skip the slow 3D pass when only the HUD changed
 const W = Math.round(1080 / PIX);
 const H = Math.round(1920 / PIX);
@@ -57,7 +64,10 @@ await Promise.all([
   document.fonts.load(`700 24px "${FONT}"`, 'ไหล่กลม ABC 123'),
   document.fonts.load(`600 24px "${FONT}"`, 'ไหล่กลม ABC 123'),
 ]);
-const scene = createScene(W, H, bg, { forceXray: params.get('xray') === null ? null : Number(params.get('xray')) });
+const scene = createScene(W, H, bg, {
+  forceXray: params.get('xray') === null ? null : Number(params.get('xray')),
+  cover: COVER_MODE ? COVER : null,
+});
 const hud = createHud({ font: FONT, smooth: SMOOTH, motion: MOTION, tag: params.get('tag') || '' });
 
 const sceneCanvas = document.createElement('canvas');
@@ -90,7 +100,8 @@ window.renderFrame = (f) => {
     scene.render();
     sctx.drawImage(scene.canvas, 0, 0);
   }
-  hud.draw(t, scene.state, scene.project, scene.trail(HW, HH));
+  if (COVER_MODE) hud.drawCover(COVER, scene.project);
+  else hud.draw(t, scene.state, scene.project, scene.trail(HW, HH));
   octx.drawImage(sceneCanvas, 0, 0, out.width, out.height);
   octx.drawImage(hud.canvas, 0, 0, out.width, out.height);
   return true;
@@ -109,7 +120,7 @@ const gpuName = (() => {
     return 'unknown';
   }
 })();
-window.clipInfo = { W, H, HW, HH, FPS, FRAMES, gpu: gpuName };
+window.clipInfo = { W, H, HW, HH, FPS, FRAMES, gpu: gpuName, coverFrame: Math.round(COVER.t * FPS) };
 window.ready = true;
 
 // live preview when opened in a normal browser

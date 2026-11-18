@@ -64,4 +64,5 @@ run('ffmpeg', [
   '-c:a', 'aac', '-b:a', '192k', '-movflags', '+faststart', '-shortest',
   path.join(ROOT, 'out', 'shoulder-clip.mp4'),
 ]);
-console.log(`built out/shoulder-clip.mp4 in ${Math.round((Date.now() - t0) / 1000)}s`);
+run(process.execPath, ['tools/render.mjs', 'cover']);
+console.log(`built out/shoulder-clip.mp4 and out/cover.png in ${Math.round((Date.now() - t0) / 1000)}s`);

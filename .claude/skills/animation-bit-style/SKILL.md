@@ -63,7 +63,13 @@ You cannot hear the result. Report loudness numbers if you measured them and say
 
 ### 6. Deliver
 
-Send the MP4 and a caption for the post (hook line, the 3-4 facts, call to action, hashtags) in the clip's language. State what was simplified and what you could not verify.
+Three things go to the user, not one:
+
+1. **The clip** - `out/<name>.mp4`
+2. **The cover image** - `out/cover.png`, made by the same build (or `node tools/render.mjs cover` alone, a few seconds). It is set up in `COVER` in the timeline. A cover has two jobs: make someone stop scrolling, and tell them exactly what they will learn. So: one huge result-word headline, a short line stating the promise with the number in it, the subject shown half outside / half inside, one tag per compared thing in its accent colour, and a strip saying how short the clip is. Keep all text inside the middle three quarters of the height, because profile grids crop covers to 3:4. Try a few camera angles with `QUERY="cam=az,el,d,tx,ty,tz&ct=seconds"` before settling.
+3. **A caption for the post** - hook line, the 3-4 facts, call to action, hashtags, in the clip's language.
+
+State what was simplified and what you could not verify.
 
 ## Style rules
 
@@ -84,5 +90,5 @@ These came out of repeated rounds of feedback; breaking them is what made earlie
 - `references/architecture.md` - file map, the timeline's data structures, how to change each element
 - `references/modeling.md` - building or changing the 3D subject
 - `references/style.md` - the look, the panel effects, the sound, and why
-- `assets/template/` - the complete working project to copy
+- `assets/template/` - the complete working project to copy (clip, cover and build tools)
 - `scripts/new-clip.mjs` - copies the template into a new folder

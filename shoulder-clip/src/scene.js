@@ -94,7 +94,7 @@ void main() {
   #include <colorspace_fragment>
 }`;
 
-export function createScene(W, H, bgCanvas, { forceXray = null } = {}) {
+export function createScene(W, H, bgCanvas, { forceXray = null, cover = null } = {}) {
   const canvas = document.createElement('canvas');
   canvas.width = W;
   canvas.height = H;
@@ -252,7 +252,8 @@ export function createScene(W, H, bgCanvas, { forceXray = null } = {}) {
         const sp = glows[g][hi];
         sp.position.set(h.centroid.x * s, h.centroid.y, h.centroid.z);
         sp.scale.set(gs, gs, 1);
-        sp.material.opacity = xr >= 1 ? Math.max(0, a - 0.3) * 0.3 : 0;
+        const lit = cover && cover.split ? s > 0 : xr >= 1;
+        sp.material.opacity = lit ? Math.max(0, a - 0.3) * (cover ? 0.12 : 0.3) : 0;
       });
     });
   }
@@ -391,9 +392,9 @@ export function createScene(W, H, bgCanvas, { forceXray = null } = {}) {
 
   function update(t) {
     const p = pose(t);
-    const act = activation(t);
+    const act = cover ? cover.act : activation(t);
     // ?xray=0|1 pins the layer for comparing skin and anatomy in the same pose
-    const xr = forceXray === null ? chXray(t) : forceXray;
+    const xr = cover ? cover.xray : forceXray === null ? chXray(t) : forceXray;
     state.act = act;
     state.armAngle = p.armAngle;
     state.xray = xr;
@@ -402,11 +403,11 @@ export function createScene(W, H, bgCanvas, { forceXray = null } = {}) {
     torso.updateMatrixWorld(true);
     // scan plane sweeps from above the head down to the floor
     const scanY = 1.95 - xr * 2.05;
-    scanBar.visible = xr > 0 && xr < 1;
+    scanBar.visible = xr > 0 && xr < 1 && !cover;
     scanBar.position.y = scanY;
-    for (let i = 0; i < 3; i++) inkU.uHiAmt.value[i] = xr >= 1 ? Math.min(1, Math.max(0, (act[i] - 0.3) / 0.3)) : 0;
+    for (let i = 0; i < 3; i++) inkU.uHiAmt.value[i] = xr >= 1 || cover ? Math.min(1, Math.max(0, (act[i] - 0.3) / 0.3)) : 0;
 
-    body.update(p.hinge, scanY, xr < 1, xr > 0, 0.45 * act[1] * act[1], act);
+    body.update(p.hinge, scanY, xr < 1, xr > 0, 0.45 * act[1] * act[1], act, !!(cover && cover.split));
     updateArms(p, act, xr);
     const h0 = body.heads;
     anchors.front.copy(h0[0].centroid);
@@ -420,8 +421,8 @@ export function createScene(W, H, bgCanvas, { forceXray = null } = {}) {
     trail.push(anchors.wrist.clone());
     if (trail.length > TRAIL) trail.shift();
 
-    const c = cameraAt(t);
-    const az = ((c.az + 3 * Math.sin((2 * Math.PI * t) / 16)) * Math.PI) / 180;
+    const c = cover ? cover.cam : cameraAt(t);
+    const az = ((c.az + (cover ? 0 : 3 * Math.sin((2 * Math.PI * t) / 16))) * Math.PI) / 180;
     const el = (c.el * Math.PI) / 180;
     camera.position.set(
       c.tx + c.d * Math.sin(az) * Math.cos(el),

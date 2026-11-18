@@ -220,6 +220,25 @@ export const SECTIONS = [
 ];
 export const PANELS = { bars: [4.6, 24.0], summary: [24.0, 28.0], cta: [28.0, 31.75] };
 
+// Cover image (thumbnail): one still that says what the clip will tell you.
+// Rendered by "npm run cover" to out/cover.png.
+export const COVER = {
+  t: 11.3, // pose taken from this moment of the clip
+  split: true, // outside on one half of the figure, inside on the other
+  xray: 0.5,
+  act: [0.9, 0.9, 0.9], // light up all three heads
+  cam: { az: 0, el: 22, d: 4.8, tx: 0.0, ty: 1.5, tz: 0.0 }, // az must stay 0 with split, so the cut is seen edge-on
+  kicker: 'สายเวทต้องรู้',
+  title: 'ไหล่กลม',
+  sub: ['ต้องฝึกให้ครบ ', '3 มัด', '!'], // the middle part is highlighted
+  tags: [
+    { n: 1, text: 'มัดหน้า', sub: 'OVERHEAD PRESS' },
+    { n: 2, text: 'มัดกลาง', sub: 'LATERAL RAISE' },
+    { n: 3, text: 'มัดหลัง', sub: 'REVERSE FLY' },
+  ],
+  footer: '3 ท่า · ดูจบใน 30 วิ',
+};
+
 // Moments the soundtrack reacts to.
 export const EVENTS = {
   captions: CAPTIONS.map((c) => c.t0),

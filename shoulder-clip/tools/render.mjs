@@ -2,6 +2,7 @@
 //   node tools/render.mjs preview 0 60 150 ...   -> contact sheet of chosen frames
 //   node tools/render.mjs frames [first last]    -> frames as two PNG layers
 //   node tools/render.mjs bench 30 366 ...        -> time individual frames
+//   node tools/render.mjs cover                   -> the cover image, out/cover.png
 // env: QUERY="font=Kanit&smooth=1&motion=2" selects the look
 //      GPU=1     render with the computer's graphics card (opens a browser window)
 //      ANGLE=gl  graphics backend to use with GPU=1 (default: the browser's own choice)
@@ -36,7 +37,9 @@ const server = http.createServer((req, res) => {
   });
 });
 await new Promise((r) => server.listen(0, '127.0.0.1', r));
-const url = `http://127.0.0.1:${server.address().port}/index.html?${QUERY}`;
+const [mode, ...rest] = process.argv.slice(2);
+const query = mode === 'cover' ? `${QUERY}${QUERY ? '&' : ''}cover=1` : QUERY;
+const url = `http://127.0.0.1:${server.address().port}/index.html?${query}`;
 
 const GPU = process.env.GPU === '1';
 async function launch() {
@@ -76,7 +79,6 @@ if (GPU && /swiftshader|llvmpipe|software|basic render/i.test(gfx)) {
   console.log('WARNING: the browser is still rendering in software. Check the graphics driver, or try ANGLE=gl / ANGLE=d3d11.');
 }
 
-const [mode, ...rest] = process.argv.slice(2);
 const b64 = (d) => Buffer.from(d.split(',')[1], 'base64');
 
 if (mode === 'preview') {
@@ -104,6 +106,13 @@ if (mode === 'preview') {
     if (f % 60 === 0) console.log(`frame ${f}/${info.FRAMES}  ${((Date.now() - t0) / 1000).toFixed(1)}s`);
   }
   console.log(`done: frames ${first}-${last} in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
+} else if (mode === 'cover') {
+  const info = await page.evaluate('window.clipInfo');
+  await page.evaluate((n) => window.renderFrame(n), info.coverFrame);
+  const file = process.env.COVER_OUT || path.join(ROOT, 'out', 'cover.png');
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, b64(await page.evaluate(() => document.getElementById('out').toDataURL('image/png'))));
+  console.log(`cover: ${file}`);
 } else if (mode === 'bench') {
   let total = 0;
   const out = [];
