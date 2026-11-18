@@ -33,6 +33,12 @@ function run(cmd, cmdArgs, extraEnv = {}) {
   if (r.status !== 0) process.exit(r.status || 1);
 }
 
+// fail before the long render, not after it, if ffmpeg is missing
+if (spawnSync('ffmpeg', ['-version'], { stdio: 'ignore' }).error) {
+  console.error('ffmpeg was not found. Install it, then open a new terminal and run this again:');
+  console.error('  Windows: winget install Gyan.FFmpeg     macOS: brew install ffmpeg');
+  process.exit(1);
+}
 fs.mkdirSync(OUT, { recursive: true });
 fs.mkdirSync(path.join(ROOT, 'out'), { recursive: true });
 const t0 = Date.now();
