@@ -52,7 +52,7 @@ const N_AM = 5; // arm muscles per arm
 const N_TM = 5; // pec (3) + lat (2) fibres per side
 const N_AD = 6; // deltoid fibres per arm (2 per head)
 
-const FRAG = `
+const COMMON = `
 #define N_SE ${N_SE}
 #define N_SC ${N_SC}
 #define N_AB ${N_AB}
@@ -81,7 +81,6 @@ uniform float uMusOn;
 uniform float uBlush;
 uniform vec3 cSkin, cShorts, cBand, cShoe, cSole, cHair, cMus, cDeep, cBlush, cBone, cSocket, cPlate, cMetal, uAmb;
 varying vec2 vUv;
-layout(location = 1) out highp vec4 gAux;
 
 float dot2(vec3 v) { return dot(v, v); }
 float smin(float a, float b, float k) {
@@ -128,7 +127,7 @@ float sdDelt(vec3 p, vec4 A, vec4 B) {
   vec3 pa = p - A.xyz;
   vec3 ba = B.xyz - A.xyz;
   float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0);
-  float r = A.w * (0.52 + 0.48 * smoothstep(0.0, 0.34, h)) * (1.0 - (1.0 - B.w / A.w) * smoothstep(0.45, 1.0, h));
+  float r = A.w * (0.7 + 0.3 * smoothstep(0.0, 0.34, h)) * (1.0 - (1.0 - B.w / A.w) * smoothstep(0.45, 1.0, h));
   return length(pa - ba * h) - r;
 }
 float sdBox(vec3 p, vec3 c, vec3 h) {
@@ -415,7 +414,7 @@ float deltoid(vec3 q, out int hd) {
   if (ba > 0.05) return ba;
   float d = 1e3;
   for (int h = 0; h < 3; h++) {
-    float a = smin(sdDelt(m, uAD[4 * h], uAD[4 * h + 1]), sdDelt(m, uAD[4 * h + 2], uAD[4 * h + 3]), 0.04);
+    float a = smin(sdDelt(m, uAD[4 * h], uAD[4 * h + 1]), sdDelt(m, uAD[4 * h + 2], uAD[4 * h + 3]), 0.075);
     if (a < d) { d = a; hd = h; }
   }
   return d;
@@ -451,35 +450,47 @@ float ramp(float ndl) {
   return v / 255.0;
 }
 
-void main() {
+// camera ray for this pixel and where it crosses the figure's bounding box
+void ray(out vec3 ro, out vec3 rd, out float tn, out float tf) {
   vec2 ndc = vUv * 2.0 - 1.0;
   vec4 pf = uInvVP * vec4(ndc, 1.0, 1.0);
-  vec3 rd = normalize(pf.xyz / pf.w - uCam);
-  vec3 ro = uCam;
-  gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
-  gAux = vec4(0.0);
-
-  // bounding box of the figure
-  vec3 bmin = vec3(-1.05, -0.02, -0.8);
-  vec3 bmax = vec3(1.05, 2.1, 1.0);
-  vec3 t0 = (bmin - ro) / rd;
-  vec3 t1 = (bmax - ro) / rd;
+  rd = normalize(pf.xyz / pf.w - uCam);
+  ro = uCam;
+  vec3 t0 = (vec3(-1.05, -0.02, -0.8) - ro) / rd;
+  vec3 t1 = (vec3(1.05, 2.1, 1.0) - ro) / rd;
   vec3 tsm = min(t0, t1);
   vec3 tbg = max(t0, t1);
-  float tn = max(max(tsm.x, tsm.y), max(tsm.z, 0.0));
-  float tf = min(tbg.x, min(tbg.y, tbg.z));
-  if (tn >= tf) return;
+  tn = max(max(tsm.x, tsm.y), max(tsm.z, 0.0));
+  tf = min(tbg.x, min(tbg.y, tbg.z));
+}
+`;
 
+// Pass 1: find the surface. Writes the hit distance, and a depth value that marks
+// which pixels hit, so that pass 2 is only run for those pixels.
+const MARCH = `${COMMON}
+void main() {
+  vec3 ro; vec3 rd; float tn; float tf;
+  ray(ro, rd, tn, tf);
   float t = tn;
   bool hit = false;
-  for (int i = 0; i < 96; i++) {
+  bool live = tn < tf;
+  for (int i = 0; i < 96 && live; i++) {
     float d = map(ro + rd * t);
-    if (d < 0.0004 * t) { hit = true; break; }
-    t += d * 0.85;
-    if (t > tf) break;
+    if (d < 0.0004 * t) { hit = true; live = false; }
+    else { t += d * 0.85; live = t <= tf; }
   }
-  if (!hit) return;
+  gl_FragColor = vec4(t, 0.0, 0.0, 1.0);
+  gl_FragDepth = hit ? 0.25 : 1.0;
+}`;
 
+// Pass 2: material, normal and lighting for the pixels that hit.
+const SHADE = `${COMMON}
+uniform sampler2D tT;
+layout(location = 1) out highp vec4 gAux;
+void main() {
+  vec3 ro; vec3 rd; float tn; float tf;
+  ray(ro, rd, tn, tf);
+  float t = texture2D(tT, vUv).r;
   // settle exactly onto the surface so materials and normals are clean
   t += map(ro + rd * t);
   t += map(ro + rd * t);
@@ -572,7 +583,7 @@ const QUAD_VERT = 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(p
 // deltoid origins relative to the shoulder joint (for the +x arm): two per head,
 // along the collarbone, the acromion and the spine of the shoulder blade
 const DELT_ORIGIN = [
-  [-0.086, 0.04, 0.05], [-0.02, 0.05, 0.054], // front
+  [-0.07, 0.04, 0.05], [-0.022, 0.048, 0.054], // front
   [0.028, 0.056, 0.028], [0.032, 0.055, -0.024], // middle
   [-0.012, 0.05, -0.056], [-0.086, 0.036, -0.078], // rear
 ];
@@ -581,12 +592,20 @@ const DELT_R = [0.034, 0.037, 0.038, 0.038, 0.036, 0.033];
 const INSERT = [0.018, -0.15, 0]; // deltoid tuberosity, arm hanging
 
 export function createBody(W, H, colors) {
+  // both passes share one depth buffer: pass 1 marks the hit pixels in it, pass 2 tests against it
+  const hitMask = new THREE.DepthTexture(W, H);
+  const rtT = new THREE.WebGLRenderTarget(W, H, {
+    type: THREE.FloatType,
+    minFilter: THREE.NearestFilter,
+    magFilter: THREE.NearestFilter,
+    depthTexture: hitMask,
+  });
   const rt = new THREE.WebGLRenderTarget(W, H, {
     count: 2,
     type: THREE.FloatType,
     minFilter: THREE.NearestFilter,
     magFilter: THREE.NearestFilter,
-    depthBuffer: false,
+    depthTexture: hitMask,
   });
 
   const flat = (list) => {
@@ -643,7 +662,27 @@ export function createBody(W, H, colors) {
   const marchScene = new THREE.Scene();
   const ortho = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
   const plane = new THREE.PlaneGeometry(2, 2);
-  marchScene.add(new THREE.Mesh(plane, new THREE.ShaderMaterial({ uniforms: U, vertexShader: QUAD_VERT, fragmentShader: FRAG, depthTest: false })));
+  marchScene.add(
+    new THREE.Mesh(
+      plane,
+      new THREE.ShaderMaterial({ uniforms: U, vertexShader: QUAD_VERT, fragmentShader: MARCH, depthTest: true, depthFunc: THREE.AlwaysDepth, depthWrite: true })
+    )
+  );
+  const shadeScene = new THREE.Scene();
+  shadeScene.add(
+    new THREE.Mesh(
+      plane,
+      new THREE.ShaderMaterial({
+        uniforms: { ...U, tT: { value: rtT.texture } },
+        vertexShader: QUAD_VERT,
+        fragmentShader: SHADE,
+        // the quad sits at depth 0.5: it passes only where pass 1 stored 0.25 (a hit)
+        depthTest: true,
+        depthFunc: THREE.GreaterDepth,
+        depthWrite: false,
+      })
+    )
+  );
 
   // full-screen quads that drop the ray-marched result into the normal passes (with real depth)
   const compose = (tex, rgbOnly) =>
@@ -766,8 +805,15 @@ export function createBody(W, H, colors) {
       U.uVP.value.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
       U.uViewRot.value.setFromMatrix4(camera.matrixWorldInverse);
       U.uCam.value.copy(camera.position);
-      renderer.setRenderTarget(rt);
+      renderer.setRenderTarget(rtT);
       renderer.render(marchScene, ortho);
+      const auto = renderer.autoClear;
+      renderer.autoClear = false; // keep the hit mask from pass 1
+      renderer.setRenderTarget(rt);
+      renderer.setClearColor(0x000000, 1);
+      renderer.clear(true, false, false);
+      renderer.render(shadeScene, ortho);
+      renderer.autoClear = auto;
     },
   };
 }
