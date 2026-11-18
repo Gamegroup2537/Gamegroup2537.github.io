@@ -412,10 +412,14 @@ float deltoid(vec3 q, out int hd) {
   hd = 0;
   float ba = armBound(m);
   if (ba > 0.05) return ba;
+  // The three heads are one muscle: their surfaces are melted into a single cap over
+  // the shoulder, and each point takes the colour of the head it is closest to.
   float d = 1e3;
+  float best = 1e3;
   for (int h = 0; h < 3; h++) {
     float a = smin(sdDelt(m, uAD[4 * h], uAD[4 * h + 1]), sdDelt(m, uAD[4 * h + 2], uAD[4 * h + 3]), 0.075);
-    if (a < d) { d = a; hd = h; }
+    if (a < best) { best = a; hd = h; }
+    d = smin(d, a, 0.06);
   }
   return d;
 }
