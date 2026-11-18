@@ -7,13 +7,19 @@ mkdir -p "$OUT_DIR" out
 # The body is ray-marched, so frames are rendered in parallel chunks. Chunks
 # start at moments with no live particles, which keeps the result identical
 # to a single pass.
-rm -rf "$OUT_DIR/frames"
-pids=()
-for range in "0 272" "273 429" "430 584" "585 779" "780 959"; do
-  node tools/render.mjs frames $range &
-  pids+=($!)
-done
-for pid in "${pids[@]}"; do wait "$pid"; done
+# HUD_ONLY=1 reuses the 3D frames from the last build and redraws just the HUD
+# (seconds instead of minutes) - use it after changing only text or graphics.
+if [ "${HUD_ONLY:-0}" = 1 ] && [ -f "$OUT_DIR/frames/scene_0959.png" ]; then
+  QUERY="${QUERY:+$QUERY&}hud=1" node tools/render.mjs frames 0 959
+else
+  rm -rf "$OUT_DIR/frames"
+  pids=()
+  for range in "0 272" "273 429" "430 584" "585 779" "780 959"; do
+    node tools/render.mjs frames $range &
+    pids+=($!)
+  done
+  for pid in "${pids[@]}"; do wait "$pid"; done
+fi
 node tools/audio.mjs "$OUT_DIR/audio.wav"
 ffmpeg -v error -y \
   -framerate 30 -i "$OUT_DIR/frames/scene_%04d.png" \

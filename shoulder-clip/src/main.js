@@ -8,6 +8,7 @@ const FONT = params.get('font') || 'Kanit';
 const SMOOTH = params.get('smooth') === '1';
 const MOTION = Number(params.get('motion') ?? 1);
 const MODEL = params.get('model') || 'a';
+const HUD_ONLY = params.get('hud') === '1'; // skip the slow 3D pass when only the HUD changed
 const W = Math.round(1080 / PIX);
 const H = Math.round(1920 / PIX);
 
@@ -62,15 +63,17 @@ window.renderFrame = (f) => {
   // particles are stateful, so walk forward to keep every render deterministic
   for (let k = Math.max(cur + 1, f - 45); k <= f; k++) advance(k);
   const t = f / FPS;
-  scene.render();
-  sctx.drawImage(scene.canvas, 0, 0);
+  if (!HUD_ONLY) {
+    scene.render();
+    sctx.drawImage(scene.canvas, 0, 0);
+  }
   hud.draw(t, scene.state, scene.project, scene.trail(HW, HH));
   octx.drawImage(sceneCanvas, 0, 0, out.width, out.height);
   octx.drawImage(hud.canvas, 0, 0, out.width, out.height);
   return true;
 };
 
-window.getLayers = () => ({ scene: sceneCanvas.toDataURL('image/png'), hud: hud.canvas.toDataURL('image/png') });
+window.getLayers = () => ({ scene: HUD_ONLY ? null : sceneCanvas.toDataURL('image/png'), hud: hud.canvas.toDataURL('image/png') });
 
 window.renderFrame(0);
 window.clipInfo = { W, H, HW, HH, FPS, FRAMES };

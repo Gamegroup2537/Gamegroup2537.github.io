@@ -60,7 +60,7 @@ if (mode === 'preview') {
   for (let f = first; f <= last; f++) {
     const layers = await page.evaluate((n) => (window.renderFrame(n), window.getLayers()), f);
     const id = String(f).padStart(4, '0');
-    fs.writeFileSync(path.join(dir, `scene_${id}.png`), b64(layers.scene));
+    if (layers.scene) fs.writeFileSync(path.join(dir, `scene_${id}.png`), b64(layers.scene));
     fs.writeFileSync(path.join(dir, `hud_${id}.png`), b64(layers.hud));
     if (f % 120 === 0) console.log(`frame ${f}/${info.FRAMES}  ${((Date.now() - t0) / 1000).toFixed(1)}s`);
   }

@@ -3,7 +3,7 @@
 //   font   - CSS font family for all text
 //   smooth - true: crisp anti-aliased text; false: alpha-thresholded "pixel" text
 //   motion - 0 pop | 1 wipe/type | 2 slide + spring | 3 glitch/scan
-import { CAPTIONS, LABELS, HEADS, WATERMARK, STATUS, SECTIONS, PANELS, CALLOUTS, CHAPTERS } from './timeline.js';
+import { CAPTIONS, LABELS, HEADS, WATERMARK, STATUS, SECTIONS, PANELS, CALLOUTS, CHAPTERS, DURATION, activation, pose } from './timeline.js';
 
 export const HW = 540;
 export const HH = 960;
@@ -200,7 +200,22 @@ export function createHud({ font = 'Chakra Petch', smooth = false, motion = 0, t
       const IN = 0.26;
       const OUT = 0.1;
       // typewriter style: boxes pop in (optionally with a wipe), the text types itself
-      if (o.wipe && a < IN && !noIn) blit(x, y, Math.ceil((w * Math.ceil((a / IN) * 10)) / 10), h);
+      if (o.boot && a < 0.3 && !noIn) {
+        // CRT power-on: a line snaps across, then the panel unfolds from it
+        if (a < 0.1) {
+          const ww = w * (a / 0.1);
+          m.fillStyle = '#f0f0ff';
+          m.fillRect(Math.round((x + w / 2 - ww / 2) * S), Math.round((y + h / 2 - 1) * S), Math.round(ww * S), 2 * S);
+        } else {
+          const k = (a - 0.1) / 0.2;
+          const hh = Math.max(2, h * k);
+          m.drawImage(scratch, x * S, y * S, w * S, h * S, x * S, Math.round((y + (h - hh) / 2) * S), w * S, Math.round(hh * S));
+          m.globalAlpha = (1 - k) * 0.55;
+          m.fillStyle = '#9ff0ff';
+          m.fillRect((x + 6) * S, Math.round((y + (h - hh) / 2 + 4) * S), (w - 12) * S, Math.max(1, Math.round((hh - 8) * S)));
+          m.globalAlpha = 1;
+        }
+      } else if (o.wipe && a < IN && !noIn) blit(x, y, Math.ceil((w * Math.ceil((a / IN) * 10)) / 10), h);
       else blit(x, y, w, h);
     } else if (motion === 2) {
       const IN = 0.42;
@@ -266,6 +281,67 @@ export function createHud({ font = 'Chakra Petch', smooth = false, motion = 0, t
     }
   }
 
+  // ---------------------------------------------------------------- effect helpers
+  const withAlpha = (al, fn) => {
+    g.globalAlpha = Math.max(0, Math.min(1, al));
+    fn();
+    g.globalAlpha = 1;
+  };
+  // pixel halo behind a lit shape
+  function glowRect(x, y, w, h, color, k = 1) {
+    withAlpha(0.1 * k, () => rect(x - 4, y - 4, w + 8, h + 8, color));
+    withAlpha(0.16 * k, () => rect(x - 2, y - 2, w + 4, h + 4, color));
+    withAlpha(0.26 * k, () => rect(x - 1, y - 1, w + 2, h + 2, color));
+  }
+  function brackets(x, y, w, h, color, len = 10, th = 2) {
+    for (const [cx, cy, sx, sy] of [[x, y, 1, 1], [x + w, y, -1, 1], [x, y + h, 1, -1], [x + w, y + h, -1, -1]]) {
+      rect(sx > 0 ? cx : cx - len, sy > 0 ? cy : cy - th, len, th, color);
+      rect(sx > 0 ? cx : cx - th, sy > 0 ? cy : cy - len, th, len, color);
+    }
+  }
+  // a light that runs round a frame's border
+  function runner(x, y, w, h, speed, color, tail = 26) {
+    const per = 2 * (w + h);
+    const head = (now * speed) % per;
+    for (let i = 0; i < tail; i += 2) {
+      let d = (head - i + per) % per;
+      let px;
+      let py;
+      if (d < w) { px = x + d; py = y; }
+      else if (d < w + h) { px = x + w - 2; py = y + (d - w); }
+      else if (d < 2 * w + h) { px = x + w - (d - w - h); py = y + h - 2; }
+      else { px = x; py = y + h - (d - 2 * w - h); }
+      withAlpha(1 - i / tail, () => rect(px, py, 2, 2, color));
+    }
+  }
+  function poly(pts, color, al = 1) {
+    g.globalAlpha = al;
+    g.fillStyle = color;
+    g.beginPath();
+    pts.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y)));
+    g.closePath();
+    g.fill();
+    g.globalAlpha = 1;
+  }
+  // diagonal sheen crossing a box; p runs 0..1
+  function shine(x, y, w, h, p, al = 0.2) {
+    if (p <= 0 || p >= 1) return;
+    g.save();
+    g.beginPath();
+    g.rect(x, y, w, h);
+    g.clip();
+    const sx = x - 50 + p * (w + 100);
+    poly([[sx, y], [sx + 22, y], [sx + 22 - h * 0.6, y + h], [sx - h * 0.6, y + h]], '#ffffff', al);
+    poly([[sx + 30, y], [sx + 36, y], [sx + 36 - h * 0.6, y + h], [sx + 30 - h * 0.6, y + h]], '#ffffff', al * 0.7);
+    g.restore();
+  }
+  function sparkle(x, y, size, color) {
+    rect(x - size, y, size * 2 + 1, 1, color);
+    rect(x, y - size, 1, size * 2 + 1, color);
+    if (size > 2) rect(x - 1, y - 1, 3, 3, color);
+  }
+  const actAt = (t) => activation(Math.max(0, Math.min(DURATION, t)));
+
   // ---------------------------------------------------------------- elements
   function drawStatus() {
     const st = STATUS.find((k) => now >= k.t0 && now < k.t1);
@@ -274,12 +350,14 @@ export function createHud({ font = 'Chakra Petch', smooth = false, motion = 0, t
     const w = width(st.text, 17) + 34;
     element([8, 22, w, 28], st.t0, st.t1, () => {
       frame(8, 22, w, 28, color, 2);
-      if (st.play) for (let i = 0; i < 6; i++) rect(16 + i, 29 + i, 1, 14 - 2 * i, color);
+      const pulse = Math.floor(now * 3) % 2 === 0;
+      if (st.play) for (let i = 0; i < 6; i++) rect(16 + i, 29 + i, 1, 14 - 2 * i, pulse ? color : WHITE);
       else {
-        rect(15, 29, 3, 14, color);
-        rect(21, 29, 3, 14, color);
+        rect(15, 29, 3, 14, pulse ? color : WHITE);
+        rect(21, 29, 3, 14, pulse ? color : WHITE);
       }
       text(st.text, 30, 43, 17, color);
+      shine(10, 24, w - 4, 24, (now - st.t0) / 0.5, 0.3);
     }, { noOut: true });
     if (st.x && Math.floor(now * 6) % 2 === 0) {
       element([HW - 90, 20, 84, 44], st.t0, st.t1, () => text(st.x, HW - 14, 52, 34, GOLD, 'r'), { noIn: true, noOut: true });
@@ -295,8 +373,10 @@ export function createHud({ font = 'Chakra Petch', smooth = false, motion = 0, t
     const h = lh * 2 + (c.big ? 20 : 14);
     const x = Math.round((HW - w) / 2);
     const y = 64;
-    element([x, y, w, h], c.t0, c.t1, () => {
+    element([x - 6, y - 6, w + 14, h + 14], c.t0, c.t1, () => {
+      withAlpha(0.5, () => rect(x + 5, y + 5, w, h, '#000008')); // hard drop shadow
       frame(x, y, w, h, motion === 0 && now - c.t0 < 0.07 ? CYAN : WHITE, 2);
+      brackets(x - 5, y - 5, w + 10, h + 10, GOLD, c.big ? 14 : 10, 2);
       const base = y + (c.big ? 12 : 8) + Math.round(lh * 0.74);
       const typed = motion === 1 && c.t0 > 0;
       const w1 = width(c.l1, px);
@@ -308,6 +388,9 @@ export function createHud({ font = 'Chakra Petch', smooth = false, motion = 0, t
       // the second line follows the first in the animated styles
       const age2 = motion && c.t0 > 0 ? now - c.t0 - (typed ? d1 : 0.18) : 9;
       sub(age2, HW / 2 - w2 / 2 - 2, base + 6, w2 + 4, lh, (dx) => text(c.l2, HW / 2 + dx, base + lh, px, GOLD, 'c'), d2);
+      // sheen once the text has landed (the hook caption repeats it)
+      const sAge = now - c.t0 - (typed ? d1 + d2 : 0);
+      shine(x + 2, y + 2, w - 4, h - 4, c.big ? ((sAge + 0.4) % 1.6) / 0.5 : sAge / 0.45, 0.22);
     });
   }
 
@@ -323,16 +406,28 @@ export function createHud({ font = 'Chakra Petch', smooth = false, motion = 0, t
       const by = Math.round(ly - h / 2);
       const ex = ax < lx ? bx : bx + w - 1;
       const ey = by + (h >> 1);
-      const x0 = Math.min(bx, ax - 3);
-      const y0 = Math.min(by, ay - 3);
-      const x1 = Math.max(bx + w, ax + 4);
-      const y1 = Math.max(by + h, ay + 4);
+      const x0 = Math.min(bx, ax - 20);
+      const y0 = Math.min(by, ay - 20);
+      const x1 = Math.max(bx + w, ax + 21);
+      const y1 = Math.max(by + h, ay + 21);
       element([x0, y0, x1 - x0, y1 - y0], l.t0, l.t1, () => {
-        const grow = motion === 0 ? Math.min(1, (now - l.t0) / 0.2) : 1;
+        const age = now - l.t0;
+        const grow = Math.min(1, age / 0.2);
         line(ex, ey, ex + (ax - ex) * grow, ey + (ay - ey) * grow, WHITE, 1);
-        if (grow >= 1) rect(ax - 2, ay - 2, 5, 5, l.color);
+        if (grow >= 1) {
+          // radar ping on the target + a pulse travelling down the leader
+          const ph = (age % 0.9) / 0.9;
+          withAlpha(0.9 * (1 - ph), () => ring(ax, ay, 5 + ph * 13, l.color, 2));
+          const k = (age * 1.4) % 1;
+          rect(ex + (ax - ex) * k - 1, ey + (ay - ey) * k - 1, 3, 3, l.color);
+          glowRect(ax - 2, ay - 2, 5, 5, l.color);
+          rect(ax - 2, ay - 2, 5, 5, WHITE);
+        }
+        withAlpha(0.45, () => rect(bx + 3, by + 3, w, h, '#000008'));
         frame(bx, by, w, h, l.color, 1);
-        text(l.text, bx + 7, by + 19, 17, WHITE);
+        rect(bx, by, 3, h, l.color);
+        text(l.text, bx + 8, by + 19, 17, WHITE);
+        shine(bx + 1, by + 1, w - 2, h - 2, (age - 0.15) / 0.4, 0.3);
       }, { pivot: [ax, ay] });
     }
   }
@@ -341,107 +436,293 @@ export function createHud({ font = 'Chakra Petch', smooth = false, motion = 0, t
   const PY = 612;
   const PW = 460;
   const PH = 132;
+  const BOX = [PX - 8, PY - 18, PW + 16, PH + 28];
   function panelHead(left, right, rightAge) {
+    withAlpha(0.5, () => rect(PX + 6, PY + 6, PW, PH, '#000008'));
     frame(PX, PY, PW, PH, '#5a5ea8', 2);
-    rect(PX + 14, PY + 15, 4, 10, LILAC);
-    rect(PX + 18, PY + 18, 10, 4, LILAC);
-    rect(PX + 28, PY + 15, 4, 10, LILAC);
-    text(left, PX + 42, PY + 27, 17, LILAC);
+    rect(PX + 2, PY + 2, PW - 4, 32, '#12153c'); // title strip
+    brackets(PX - 5, PY - 5, PW + 10, PH + 10, CYAN, 12, 2);
+    runner(PX, PY, PW, PH, 260, WHITE);
+    // bouncing equaliser icon
+    for (let k = 0; k < 4; k++) {
+      const hh = 3 + Math.round(10 * Math.abs(Math.sin(now * 6.5 + k * 1.9)));
+      rect(PX + 13 + k * 6, PY + 27 - hh, 4, hh, k % 2 ? CYAN : LILAC);
+    }
+    text(left, PX + 44, PY + 26, 17, WHITE);
+    const lw = width(left, 17);
+    if (Math.floor(now * 2.5) % 2 === 0) {
+      glowRect(PX + 52 + lw, PY + 14, 7, 7, '#ff4466');
+      rect(PX + 52 + lw, PY + 14, 7, 7, '#ff4466');
+    }
     const tw = width(right, 17);
-    sub(rightAge, PX + PW - 14 - tw - 4, PY + 8, tw + 8, 26, (dx) => text(right, PX + PW - 14 + dx, PY + 27, 17, CYAN, 'r'));
+    sub(rightAge, PX + PW - 14 - tw - 4, PY + 7, tw + 8, 26, (dx) => text(right, PX + PW - 14 + dx, PY + 26, 17, CYAN, 'r'));
+    for (let i = 0; i < PW - 4; i += 6) rect(PX + 2 + i, PY + 34, 3, 1, '#5a5ea8');
   }
+
+  const SEG = 12;
+  const SEG_X = PX + 108;
+  const SEG_P = 23;
   function drawPanel(act) {
-    const box = [PX, PY - 14, PW, PH + 14];
-    const o = { from: 'below', dist: 46 };
-    element(box, PANELS.bars[0], PANELS.bars[1], () => {
+    const o = { from: 'below', dist: 46, boot: true };
+    element(BOX, PANELS.bars[0], PANELS.bars[1], () => {
       const sec = SECTIONS.find((k) => now >= k.t0 && now < k.t1) || SECTIONS[0];
       panelHead('กล้ามเนื้อที่ทำงาน', sec.title, sec === SECTIONS[0] ? 1 : now - sec.t0);
+      const fr = Math.floor(now * 30);
       HEADS.forEach((hd, i) => {
-        const y = PY + 40 + i * 29;
+        const y = PY + 41 + i * 29;
         const a = act[i];
-        rect(PX + 14, y + 5, 12, 12, hd.color);
+        const hot = a >= 0.88;
+        // whole row lights up while the muscle is near its peak
+        if (a > 0.6) withAlpha((a - 0.6) * (hot && fr % 6 < 3 ? 0.5 : 0.34), () => rect(PX + 4, y, PW - 8, 24, hd.color));
+        const sq = a > 0.55 ? 14 : 12;
+        if (a > 0.55) glowRect(PX + 13, y + 5, 14, 14, hd.color);
+        rect(PX + 20 - sq / 2, y + 12 - sq / 2, sq, sq, hd.color);
         text(hd.th, PX + 36, y + 18, 17, a > 0.55 ? WHITE : LILAC);
-        if (motion === 2) {
-          // smooth meter with a percentage read-out
-          const tw = 286;
-          rect(PX + 112, y + 5, tw, 13, DIM);
-          rect(PX + 113, y + 6, tw - 2, 11, '#0d1030');
-          const fw = Math.round((tw - 2) * a);
-          rect(PX + 113, y + 6, fw, 11, shade(hd.color, 0.62));
-          rect(PX + 113, y + 6, fw, 4, hd.color);
-          if (fw > 3) rect(PX + 113 + fw - 3, y + 4, 3, 15, WHITE);
-          text(`${Math.round(a * 100)}%`, PX + PW - 14, y + 18, 16, a > 0.55 ? WHITE : LILAC, 'r');
-          return;
-        }
-        const n = 10;
-        const lit = Math.round(a * n);
-        for (let k = 0; k < n; k++) {
-          const cx = PX + 112 + k * 34;
+
+        const lit = Math.round(a * SEG);
+        const sweep = Math.floor(now * 16) % (SEG + 8);
+        for (let k = 0; k < SEG; k++) {
+          const cx = SEG_X + k * SEG_P;
           if (k < lit) {
-            let top = k === lit - 1;
-            if (motion === 3 && top && Math.floor(now * 30) % 4 === 0) top = false;
-            rect(cx, y + 3, 30, 17, top ? WHITE : hd.color);
-            rect(cx + 2, y + 5, 26, 13, top ? hd.color : shade(hd.color, 0.5));
+            const top = k === lit - 1;
+            if (top) glowRect(cx, y + 3, 20, 18, hd.color, 1.6);
+            rect(cx, y + 3, 20, 18, top ? WHITE : hd.color);
+            rect(cx + 2, y + 5, 16, 14, top ? hd.color : shade(hd.color, k === sweep ? 0.95 : 0.55));
+            rect(cx + 2, y + 5, 16, 3, top ? WHITE : shade(hd.color, 0.8)); // bevel highlight
           } else {
-            rect(cx, y + 3, 30, 17, DIM);
-            rect(cx + 1, y + 4, 28, 15, '#0d1030');
+            rect(cx, y + 3, 20, 18, DIM);
+            rect(cx + 1, y + 4, 18, 16, '#0d1030');
+            rect(cx + 8, y + 11, 4, 2, DIM);
           }
         }
+        // peak-hold marker that falls back slowly
+        let peak = 0;
+        for (let k = 0; k <= 15; k++) peak = Math.max(peak, actAt(now - k * 0.1)[i] - k * 0.035);
+        if (peak > a + 0.03 && peak > 0.08) rect(SEG_X + Math.round(peak * SEG * SEG_P) - 4, y + 2, 3, 20, WHITE);
+        // sparks thrown off the tip of a hard-working bar
+        if (a > 0.75) {
+          const tx = SEG_X + lit * SEG_P - 4;
+          for (let j = 0; j < 6; j++) {
+            const ph = (now * 2.2 + j * 0.37 + i * 0.21) % 1;
+            const vx = 14 + 26 * hash(j * 9.1 + i * 3.3 + Math.floor(now * 2.2 + j * 0.37));
+            const vy = (hash(j * 5.7 + i) - 0.5) * 34;
+            withAlpha(1 - ph, () => rect(tx + vx * ph, y + 11 + vy * ph, 3, 3, j % 2 ? WHITE : hd.color));
+          }
+        }
+        const pct = `${Math.round(a * 100)}%`;
+        if (hot) for (const [ox, oy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) withAlpha(0.5, () => text(pct, PX + PW - 12 + ox, y + 19 + oy, 18, hd.color, 'r'));
+        text(pct, PX + PW - 12, y + 19, 18, hot ? (fr % 6 < 3 ? GOLD : WHITE) : a > 0.55 ? WHITE : LILAC, 'r');
       });
     }, o);
-    element(box, PANELS.summary[0], PANELS.summary[1], () => {
-      panelHead('ครบทั้ง 3 มัด', 'สูตรไหล่กลม', 1);
+
+    element(BOX, PANELS.summary[0], PANELS.summary[1], () => {
+      const ages = HEADS.map((_, i) => now - PANELS.summary[0] - 0.15 - i * 0.45);
+      const done = ages[2] > 0.4;
+      panelHead('ครบทั้ง 3 มัด', done ? 'ครบ 100%' : 'สูตรไหล่กลม', done ? ages[2] - 0.4 : 1);
       HEADS.forEach((hd, i) => {
-        const y = PY + 40 + i * 29;
-        const age = now - PANELS.summary[0] - 0.15 - i * 0.45;
-        sub(age, PX + 10, y, PW - 20, 26, (dx) => {
-          rect(PX + 14 + dx, y + 5, 12, 12, hd.color);
+        const y = PY + 41 + i * 29;
+        const age = ages[i];
+        if (age >= 0 && age < 0.35) withAlpha(0.5 * (1 - age / 0.35), () => rect(PX + 4, y, 300, 24, hd.color));
+        sub(age, PX + 10, y, 300, 26, (dx) => {
+          // tick box
+          rect(PX + 13 + dx, y + 4, 15, 15, hd.color);
+          rect(PX + 15 + dx, y + 6, 11, 11, INK);
+          if (age > 0.2) {
+            line(PX + 17 + dx, y + 11, PX + 20 + dx, y + 14, WHITE, 2);
+            line(PX + 20 + dx, y + 14, PX + 25 + dx, y + 7, WHITE, 2);
+          }
           text(hd.th, PX + 36 + dx, y + 18, 17, WHITE);
-          rect(PX + 112 + dx, y + 10, 14, 2, LILAC);
-          rect(PX + 122 + dx, y + 7, 2, 8, LILAC);
-          rect(PX + 124 + dx, y + 9, 2, 4, LILAC);
-          text(hd.move, PX + 138 + dx, y + 18, 18, age < 0.3 && motion === 0 ? WHITE : hd.color);
+          rect(PX + 106 + dx, y + 10, 12, 2, LILAC);
+          rect(PX + 114 + dx, y + 7, 2, 8, LILAC);
+          rect(PX + 116 + dx, y + 9, 2, 4, LILAC);
+          text(hd.move, PX + 126 + dx, y + 18, 18, hd.color);
         });
       });
-    }, { ...o, noIn: true });
-    element(box, PANELS.cta[0], PANELS.cta[1], () => {
-      const blink = Math.floor(now * 4) % 2;
-      dotted(PX, PY, PW, PH, CYAN, PINK);
+      // radar chart: the triangle fills out as each head is covered
+      const cx = PX + 388;
+      const cy = PY + 88;
+      const R = 40;
+      const dirs = [-90, 30, 150].map((d) => [Math.cos((d * Math.PI) / 180), Math.sin((d * Math.PI) / 180)]);
+      for (const k of [1 / 3, 2 / 3, 1]) {
+        dirs.forEach((d, i) => {
+          const e = dirs[(i + 1) % 3];
+          line(cx + d[0] * R * k, cy + d[1] * R * k, cx + e[0] * R * k, cy + e[1] * R * k, k === 1 ? '#5a5ea8' : DIM, 1);
+        });
+      }
+      const vals = ages.map((a) => 0.14 + 0.86 * Math.max(0, Math.min(1, a / 0.4)));
+      const pulse = done ? 1 + 0.06 * Math.sin((now - PANELS.summary[0]) * 9) : 1;
+      const pts = dirs.map((d, i) => [cx + d[0] * R * vals[i] * pulse, cy + d[1] * R * vals[i] * pulse]);
+      poly(pts, GOLD, done ? 0.5 : 0.32);
+      pts.forEach((p, i) => {
+        const q = pts[(i + 1) % 3];
+        line(p[0], p[1], q[0], q[1], done ? WHITE : GOLD, 2);
+        line(cx, cy, cx + dirs[i][0] * R, cy + dirs[i][1] * R, DIM, 1);
+        glowRect(p[0] - 3, p[1] - 3, 7, 7, HEADS[i].color, vals[i]);
+        rect(p[0] - 3, p[1] - 3, 7, 7, HEADS[i].color);
+      });
+      if (done) {
+        for (let j = 0; j < 5; j++) {
+          const ph = (now * 1.3 + j * 0.31) % 1;
+          const an = hash(j * 3.1 + Math.floor(now * 1.3 + j * 0.31)) * Math.PI * 2;
+          withAlpha(1 - ph, () => sparkle(Math.round(cx + Math.cos(an) * (R + 6) * ph), Math.round(cy + Math.sin(an) * (R + 6) * ph), 2, WHITE));
+        }
+      }
+    }, { ...o, noIn: true, boot: false });
+
+    element(BOX, PANELS.cta[0], PANELS.cta[1], () => {
+      const age = now - PANELS.cta[0];
+      withAlpha(0.5, () => rect(PX + 6, PY + 6, PW, PH, '#000008'));
+      rect(PX, PY, PW, PH, INK);
+      // marching border
+      const off = Math.floor(now * 12);
+      const dot = (px, py, d) => rect(px, py, 3, 3, Math.floor((d + off) / 8) % 2 ? CYAN : PINK);
+      for (let d = 0; d < PW; d += 4) {
+        dot(PX + d, PY, d);
+        dot(PX + PW - 3 - d, PY + PH - 3, d + PW + PH);
+      }
+      for (let d = 0; d < PH; d += 4) {
+        dot(PX + PW - 3, PY + d, d + PW);
+        dot(PX, PY + PH - 3 - d, d + 2 * PW + PH);
+      }
+      brackets(PX - 5, PY - 5, PW + 10, PH + 10, GOLD, 14, 2);
       const chip = 'เซฟคลิปนี้ไว้';
       const cw = width(chip, 17) + 34;
-      rect(HW / 2 - cw / 2, PY - 13, cw, 26, CYAN);
-      for (let i = 0; i < 6; i++) rect(HW / 2 - cw / 2 + 9 + i, PY - 7 + i, 1, 14 - 2 * i, INK);
-      text(chip, HW / 2 + 9, PY + 6, 17, INK, 'c');
+      const bob = Math.round(Math.sin(now * 6) * 2);
+      glowRect(HW / 2 - cw / 2, PY - 13 + bob, cw, 26, CYAN, 1.4);
+      rect(HW / 2 - cw / 2, PY - 13 + bob, cw, 26, CYAN);
+      for (let i = 0; i < 6; i++) rect(HW / 2 - cw / 2 + 9 + i, PY - 7 + i + bob, 1, 14 - 2 * i, INK);
+      text(chip, HW / 2 + 9, PY + 6 + bob, 17, INK, 'c');
       text('ไหล่กลม = ฝึกครบ 3 มัด', HW / 2, PY + 58, 30, WHITE, 'c');
-      text('หน้า · กลาง · หลัง', HW / 2, PY + 88, 19, LILAC, 'c');
-      text(blink ? '♥ แชร์ให้เพื่อนสายยิม ♥' : 'แชร์ให้เพื่อนสายยิม', HW / 2, PY + 117, 18, PINK, 'c');
+      // the three heads light up in turn
+      const names = ['หน้า', 'กลาง', 'หลัง'];
+      const on = Math.floor(now * 2.5) % 3;
+      const ws = names.map((nm) => width(nm, 19));
+      let nx = HW / 2 - (ws.reduce((p, c) => p + c, 0) + 3 * 18 + 2 * 22) / 2;
+      names.forEach((nm, i) => {
+        if (i === on) glowRect(nx, PY + 74, 12, 12, HEADS[i].color);
+        rect(nx, PY + 74, 12, 12, HEADS[i].color);
+        text(nm, nx + 18, PY + 87, 19, i === on ? WHITE : LILAC);
+        nx += 18 + ws[i] + 22;
+      });
+      text(Math.floor(now * 4) % 2 ? '♥ แชร์ให้เพื่อนสายยิม ♥' : 'แชร์ให้เพื่อนสายยิม', HW / 2, PY + 117, 18, PINK, 'c');
+      shine(PX + 3, PY + 3, PW - 6, PH - 6, ((age + 0.2) % 1.5) / 0.6, 0.16);
+      for (let j = 0; j < 7; j++) {
+        const ph = (now * 1.1 + j * 0.29) % 1;
+        const sd = Math.floor(now * 1.1 + j * 0.29) * 7.3 + j * 13.7;
+        const sx = PX + 10 + hash(sd) * (PW - 20);
+        const sy = hash(sd + 3.3) > 0.5 ? PY - 2 : PY + PH + 1;
+        withAlpha(Math.sin(ph * Math.PI), () => sparkle(Math.round(sx), sy, ph < 0.5 ? 3 : 2, j % 2 ? GOLD : WHITE));
+      }
     }, o);
+  }
+
+  // live "muscle signal" scope: three scrolling bursts driven by the same activation data
+  function drawScope() {
+    const X = 12;
+    const Y = 802;
+    const W = 372;
+    const H = 110;
+    element([X - 6, Y - 6, W + 12, H + 12], PANELS.bars[0] + 0.15, PANELS.bars[1], () => {
+      withAlpha(0.5, () => rect(X + 5, Y + 5, W, H, '#000008'));
+      frame(X, Y, W, H, '#5a5ea8', 2);
+      brackets(X - 4, Y - 4, W + 8, H + 8, CYAN, 8, 2);
+      text('สัญญาณกล้ามเนื้อ', X + 10, Y + 17, 13, LILAC);
+      if (Math.floor(now * 2.5) % 2) rect(X + W - 46, Y + 8, 6, 6, '#ff4466');
+      text('LIVE', X + W - 8, Y + 16, 12, '#ff4466', 'r');
+      const x0 = X + 30;
+      const x1 = X + W - 10;
+      const DT = 0.03;
+      const kNow = Math.floor(now / DT);
+      const offs = (now / DT - kNow) * 3;
+      // time grid scrolling with the signal
+      for (let n = 0; n < 130; n++) {
+        const k = kNow - n;
+        if (k % 33 !== 0) continue;
+        const gx = Math.round(x1 - n * 3 - offs);
+        if (gx > x0) for (let yy = Y + 24; yy < Y + H - 6; yy += 4) rect(gx, yy, 1, 2, DIM);
+      }
+      HEADS.forEach((hd, i) => {
+        const cy = Y + 36 + i * 27;
+        rect(X + 10, cy - 5, 10, 10, hd.color);
+        for (let xx = x0; xx < x1; xx += 6) rect(xx, cy, 3, 1, DIM);
+        for (let n = 0; n < 130; n++) {
+          const gx = Math.round(x1 - n * 3 - offs);
+          if (gx <= x0) break;
+          const k = kNow - n;
+          const a = actAt(k * DT)[i];
+          const amp = Math.round(a * (0.3 + 0.7 * hash(k * 1.37 + i * 17.7)) * 11);
+          if (amp < 1) continue;
+          const fade = gx < x0 + 50 ? (gx - x0) / 50 : 1;
+          withAlpha(fade, () => {
+            rect(gx, cy - amp, 2, amp * 2 + 1, n < 3 ? WHITE : shade(hd.color, 0.75));
+            rect(gx, cy - amp, 2, 2, hd.color);
+            rect(gx, cy + amp - 1, 2, 2, hd.color);
+          });
+        }
+        const aN = actAt(now)[i];
+        if (aN > 0.3) glowRect(x1 - 1, cy - 2, 4, 5, hd.color, aN * 1.6);
+        rect(x1 - 1, cy - 2, 4, 5, aN > 0.3 ? WHITE : DIM);
+      });
+    }, { boot: true });
   }
 
   function drawGauge(angle) {
     const cx = 458;
     const cy = 850;
     const r = 60;
-    element([cx - r - 2, cy - r - 32, 2 * r + 6, 2 * r + 36], -1, 1e9, () => {
+    const inZone = angle >= 78 && angle <= 96;
+    const fr = Math.floor(now * 30);
+    element([cx - r - 12, cy - r - 36, 2 * r + 24, 2 * r + 50], -1, 1e9, () => {
+      // slowly spinning outer ring
+      for (let k = 0; k < 24; k++) {
+        const an = (k / 24) * Math.PI * 2 + now * 0.6;
+        withAlpha(k % 3 ? 0.35 : 0.9, () => rect(cx + Math.cos(an) * (r + 7) - 1, cy + Math.sin(an) * (r + 7) - 1, 3, 3, inZone ? PINK : LILAC));
+      }
       disc(cx, cy, r, INK);
-      ring(cx, cy, r, '#c8c8f0', 2);
+      if (inZone) withAlpha(0.35 + 0.25 * Math.sin(now * 14), () => ring(cx, cy, r + 2, PINK, 3));
+      ring(cx, cy, r, inZone ? PINK : '#c8c8f0', 2);
+      // swept arc: lights up to the current angle
+      const cl = Math.max(0, Math.min(180, angle));
+      for (let d = 0; d <= 180; d += 5) {
+        const a = (d * Math.PI) / 180;
+        const px = cx + Math.sin(a) * (r - 7);
+        const py = cy + Math.cos(a) * (r - 7);
+        const zone = d >= 80 && d <= 95;
+        if (d <= cl) {
+          const head = d + 5 > cl;
+          if (head) glowRect(px - 2, py - 2, 4, 4, GOLD, 1.8);
+          rect(px - 2, py - 2, 4, 4, head ? WHITE : zone ? PINK : GOLD);
+        } else rect(px - 1, py - 1, 3, 3, zone ? '#7a2a58' : DIM);
+      }
       for (let d = 0; d <= 180; d += 30) {
         const a = (d * Math.PI) / 180;
-        const sx = Math.sin(a);
-        const sy = Math.cos(a);
-        line(cx + sx * (r - 9), cy + sy * (r - 9), cx + sx * (r - 3), cy + sy * (r - 3), d === 90 ? PINK : '#c8c8f0', d === 90 ? 2 : 1);
+        line(cx + Math.sin(a) * (r - 17), cy + Math.cos(a) * (r - 17), cx + Math.sin(a) * (r - 12), cy + Math.cos(a) * (r - 12), d === 90 ? PINK : LILAC, d === 90 ? 2 : 1);
       }
-      for (let d = 82; d <= 98; d += 2) {
-        const a = (d * Math.PI) / 180;
-        rect(cx + Math.sin(a) * (r - 13), cy + Math.cos(a) * (r - 13), 2, 2, PINK);
+      // needle with motion ghosts
+      for (let k = 3; k >= 1; k--) {
+        const ga = (Math.max(0, Math.min(180, pose(Math.max(0, now - k * 0.07)).armAngle)) * Math.PI) / 180;
+        withAlpha(0.42 - k * 0.1, () => line(cx, cy, cx + Math.sin(ga) * (r - 20), cy + Math.cos(ga) * (r - 20), GOLD, 2));
       }
-      const a = (Math.max(0, Math.min(180, angle)) * Math.PI) / 180;
-      line(cx, cy, cx + Math.sin(a) * (r - 14), cy + Math.cos(a) * (r - 14), GOLD, 2);
-      disc(cx, cy, 3, WHITE);
-      text(`${Math.round(angle)}°`, cx - 7, cy + 2, 23, GOLD, 'r');
-      const lw = width('มุมแขน', 16) + 14;
-      frame(cx - lw / 2, cy - r - 30, lw, 25, '#5a5ea8', 1);
-      text('มุมแขน', cx, cy - r - 12, 16, WHITE, 'c');
+      const a = (cl * Math.PI) / 180;
+      const nx = cx + Math.sin(a) * (r - 19);
+      const ny = cy + Math.cos(a) * (r - 19);
+      line(cx, cy, nx, ny, GOLD, 2);
+      glowRect(nx - 2, ny - 2, 4, 4, GOLD);
+      rect(nx - 2, ny - 2, 4, 4, WHITE);
+      disc(cx, cy, 4, WHITE);
+      disc(cx, cy, 2, INK);
+      text(`${Math.round(angle)}°`, cx - 8, cy + 2, 24, inZone && fr % 6 < 3 ? WHITE : GOLD, 'r');
+      // label flips to a "shoulder height" badge inside the target zone
+      const label = inZone ? 'ระดับไหล่!' : 'มุมแขน';
+      const lw = width(label, 16) + 14;
+      if (inZone) {
+        glowRect(cx - lw / 2, cy - r - 34, lw, 25, PINK, 1.5);
+        rect(cx - lw / 2, cy - r - 34, lw, 25, PINK);
+        text(label, cx, cy - r - 16, 16, INK, 'c');
+      } else {
+        frame(cx - lw / 2, cy - r - 34, lw, 25, '#5a5ea8', 1);
+        text(label, cx, cy - r - 16, 16, WHITE, 'c');
+      }
     });
   }
 
@@ -478,14 +759,24 @@ export function createHud({ font = 'Chakra Petch', smooth = false, motion = 0, t
       if (now < c.t0 || now >= c.t1) continue;
       const [ax, ay] = project(c.anchor, HW, HH);
       const age = now - c.t0;
-      const px = 40;
-      const w = width(c.text, px);
+      const px = age < 0.07 ? 56 : age < 0.14 ? 47 : 40; // punch in
+      const w = width(c.text, 56);
       const jig = age < 0.2 ? Math.round((hash(Math.floor(now * 30)) - 0.5) * 8) : 0;
-      const cx = Math.max(w / 2 + 10, Math.min(HW - w / 2 - 10, ax + c.off[0])) + jig;
-      const cy = Math.max(200, Math.min(590, ay + c.off[1]));
-      element([cx - w / 2 - 6, cy - px, w + 14, px + 22], c.t0, c.t1, () => {
-        for (const [ox, oy] of [[3, 3], [-2, 0], [2, 0], [0, -2], [0, 2]]) text(c.text, cx + ox, cy + oy, px, INK, 'c');
-        text(c.text, cx, cy, px, GOLD, 'c');
+      const cx = Math.max(w / 2 + 44, Math.min(HW - w / 2 - 44, ax + c.off[0])) + jig;
+      const cy = Math.max(210, Math.min(580, ay + c.off[1]));
+      element([cx - w / 2 - 40, cy - 78, w + 80, 120], c.t0, c.t1, () => {
+        // impact burst
+        if (age < 0.4) {
+          const k = age / 0.4;
+          for (let j = 0; j < 14; j++) {
+            const an = (j / 14) * Math.PI * 2 + 0.2;
+            const r0 = 30 + k * 34 + (j % 2) * 6;
+            const len = (1 - k) * (j % 2 ? 22 : 14);
+            line(cx + Math.cos(an) * r0 * 1.25, cy - 16 + Math.sin(an) * r0 * 0.8, cx + Math.cos(an) * (r0 + len) * 1.25, cy - 16 + Math.sin(an) * (r0 + len) * 0.8, j % 2 ? GOLD : WHITE, 2);
+          }
+        }
+        for (const [ox, oy] of [[4, 4], [-2, 0], [2, 0], [0, -2], [0, 2]]) text(c.text, cx + ox, cy + oy, px, INK, 'c');
+        text(c.text, cx, cy, px, age < 0.1 ? WHITE : GOLD, 'c');
       }, { noIn: true, noOut: true });
     }
   }
@@ -495,10 +786,15 @@ export function createHud({ font = 'Chakra Petch', smooth = false, motion = 0, t
     if (!c) return;
     const tw = width(c.text, 20);
     const w = tw + 62;
-    element([12, 826, w, 44], c.t0, c.t0 + 2.4, () => {
-      frame(12, 826, w, 44, WHITE, 2);
-      text(String(c.n), 26, 859, 30, GOLD);
-      sub(motion === 1 ? now - c.t0 - 0.1 : 9, 54, 834, tw + 4, 30, () => text(c.text, 56, 856, 20, WHITE), Math.min(0.5, c.text.length * 0.035));
+    const Y = 752;
+    element([12, Y - 4, w + 8, 52], c.t0, c.t0 + 2.4, () => {
+      const age = now - c.t0;
+      withAlpha(0.5, () => rect(16, Y + 4, w, 44, '#000008'));
+      frame(12, Y, w, 44, WHITE, 2);
+      rect(14, Y + 2, 34, 40, GOLD);
+      text(String(c.n), 31, Y + 33, 30, INK, 'c');
+      sub(motion === 1 ? age - 0.1 : 9, 54, Y + 8, tw + 4, 30, () => text(c.text, 56, Y + 30, 20, WHITE), Math.min(0.5, c.text.length * 0.035));
+      shine(14, Y + 2, w - 4, 40, (age - 0.3) / 0.45, 0.3);
     }, { wipe: true });
   }
 
@@ -509,6 +805,7 @@ export function createHud({ font = 'Chakra Petch', smooth = false, motion = 0, t
     drawLabels(project);
     drawCallouts(project);
     drawPanel(state.act);
+    drawScope();
     drawGauge(state.armAngle);
     drawChapter();
     drawCaption();
