@@ -464,8 +464,8 @@ export function createHud({ font = 'Chakra Petch', smooth = false, motion = 0, t
       const d = Math.hypot(x1 - px, y1 - py) || 1;
       const ux = (x1 - px) / d;
       const uy = (y1 - py) / d;
-      const tx = x1 + ux * 16;
-      const ty = y1 + uy * 16;
+      const tx = x1 + ux * 34;
+      const ty = y1 + uy * 34;
       for (let i = 0; i < 9; i++) {
         const hw = (9 - i) * 0.9;
         line(tx - ux * (9 - i) - uy * hw, ty - uy * (9 - i) + ux * hw, tx - ux * (9 - i) + uy * hw, ty - uy * (9 - i) - ux * hw, GOLD, 2);
