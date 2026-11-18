@@ -7,6 +7,8 @@
 
 ## สร้างคลิปใหม่
 
+**Windows แบบง่ายที่สุด:** ดับเบิลคลิก `build-clip.bat` ในโฟลเดอร์นี้ จะดึงรุ่นล่าสุด เรนเดอร์ด้วยการ์ดจอ แล้วเปิดคลิปให้เอง
+
 ต้องมี Node.js 18 ขึ้นไป และ ffmpeg (Windows: `winget install OpenJS.NodeJS.LTS` และ `winget install Gyan.FFmpeg` แล้วเปิดหน้าต่างคำสั่งใหม่)
 
 ```bash
