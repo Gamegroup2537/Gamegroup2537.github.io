@@ -187,23 +187,22 @@ export const LABELS = [
   { t0: 21.8, t1: 23.2, text: 'ดันขึ้นตรง ๆ', anchor: 'wrist', color: '#e8e8ff', off: [-150, 40] },
 ];
 
-export function statusAt(t) {
-  if (t < 3.0) return { play: true, text: 'ความเร็วจริง' };
-  if (t < 4.0) return { play: false, text: 'กำลังสโลว์…' };
-  if (t < 24.0) return { play: false, text: 'สโลว์โมชัน 1/3' };
-  if (t < 25.0) return { play: false, text: 'กำลังเร่ง…', x: '×3' };
-  return { play: true, text: 'ความเร็วจริง' };
-}
+export const STATUS = [
+  { t0: 0, t1: 3, play: true, text: 'ความเร็วจริง' },
+  { t0: 3, t1: 4, play: false, text: 'กำลังสโลว์…' },
+  { t0: 4, t1: 24, play: false, text: 'สโลว์โมชัน 1/3' },
+  { t0: 24, t1: 25, play: false, text: 'กำลังเร่ง…', x: '×3' },
+  { t0: 25, t1: 32, play: true, text: 'ความเร็วจริง' },
+];
 
-export function panelAt(t) {
-  if (t < 4.6) return { mode: 'none' };
-  if (t < 9.0) return { mode: 'bars', title: 'เดลทอยด์ 3 มัด' };
-  if (t < 14.0) return { mode: 'bars', title: 'LATERAL RAISE' };
-  if (t < 19.0) return { mode: 'bars', title: 'REVERSE FLY' };
-  if (t < 24.0) return { mode: 'bars', title: 'OVERHEAD PRESS' };
-  if (t < 28.0) return { mode: 'summary', title: 'สูตรไหล่กลม', reveal: (t - 24.0) / 0.5 };
-  return { mode: 'cta' };
-}
+// Bottom panel: live activation bars -> programme summary -> call to action
+export const SECTIONS = [
+  { t0: 4.6, t1: 9.0, title: 'เดลทอยด์ 3 มัด' },
+  { t0: 9.0, t1: 14.0, title: 'LATERAL RAISE' },
+  { t0: 14.0, t1: 19.0, title: 'REVERSE FLY' },
+  { t0: 19.0, t1: 24.0, title: 'OVERHEAD PRESS' },
+];
+export const PANELS = { bars: [4.6, 24.0], summary: [24.0, 28.0], cta: [28.0, 31.75] };
 
 // Moments the soundtrack reacts to.
 export const EVENTS = {

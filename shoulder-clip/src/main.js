@@ -3,7 +3,11 @@ import { createHud, HW, HH } from './hud.js';
 import { FPS, FRAMES } from './timeline.js';
 
 const params = new URLSearchParams(location.search);
-const PIX = Number(params.get('pix') || 4); // size of one 3D "pixel" in the final 1080x1920 frame
+const PIX = Number(params.get('pix') || 3); // size of one 3D "pixel" in the final 1080x1920 frame
+const FONT = params.get('font') || 'Chakra Petch';
+const SMOOTH = params.get('smooth') === '1';
+const MOTION = Number(params.get('motion') || 0);
+const MODEL = params.get('model') || 'a';
 const W = Math.round(1080 / PIX);
 const H = Math.round(1920 / PIX);
 
@@ -38,8 +42,12 @@ bg.height = H;
   x.fillRect(0, 0, W, H);
 }
 
-const scene = createScene(W, H, bg);
-const hud = createHud();
+await Promise.all([
+  document.fonts.load(`700 24px "${FONT}"`, 'ไหล่กลม ABC 123'),
+  document.fonts.load(`600 24px "${FONT}"`, 'ไหล่กลม ABC 123'),
+]);
+const scene = createScene(W, H, bg, { model: MODEL });
+const hud = createHud({ font: FONT, smooth: SMOOTH, motion: MOTION, tag: params.get('tag') || '' });
 
 const sceneCanvas = document.createElement('canvas');
 sceneCanvas.width = W;
@@ -98,10 +106,6 @@ window.renderFrame = (f) => {
 
 window.getLayers = () => ({ scene: sceneCanvas.toDataURL('image/png'), hud: hud.canvas.toDataURL('image/png') });
 
-await Promise.all([
-  document.fonts.load('700 24px "Chakra Petch"', 'ไหล่กลม ABC 123'),
-  document.fonts.load('600 24px "Chakra Petch"', 'ไหล่กลม ABC 123'),
-]);
 window.renderFrame(0);
 window.clipInfo = { W, H, HW, HH, FPS, FRAMES };
 window.ready = true;
