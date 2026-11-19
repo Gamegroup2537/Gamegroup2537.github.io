@@ -71,7 +71,7 @@ Three things go to the user, not one:
 
 State what was simplified and what you could not verify.
 
-For a new channel, also offer a **profile picture**: `node tools/render.mjs avatar` writes `out/avatar.png` (1080x1080, set up in `AVATAR` in the timeline). Keep it text-free and built from one bold shape - a close-up of the subject, half outside and half inside, inside a two-tone ring - because it is shown as a circle only a few dozen pixels wide. Check it cropped to a circle at 48 px before sending.
+For a new channel, also offer a **profile picture**. A symbol usually suits a channel better than a character: `node tools/logo.mjs [bulb|play|cube]` draws a pixel-art mark (no browser needed, instant) whose left half is solid and right half is "scanned", the same idea as the clips. Add a design to that file for a channel with its own theme. For a picture made from the clip's subject instead: `node tools/render.mjs avatar` writes `out/avatar.png` (1080x1080, set up in `AVATAR` in the timeline). Keep it text-free and built from one bold shape - a close-up of the subject, half outside and half inside, inside a two-tone ring - because it is shown as a circle only a few dozen pixels wide. Check it cropped to a circle at 48 px before sending.
 
 ## Style rules
 

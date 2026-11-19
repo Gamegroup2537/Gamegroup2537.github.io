@@ -8,7 +8,8 @@
     "build:hud": "node tools/build.mjs --hud",
     "preview": "node tools/render.mjs preview",
     "cover": "node tools/render.mjs cover",
-    "avatar": "node tools/render.mjs avatar"
+    "avatar": "node tools/render.mjs avatar",
+    "logo": "node tools/logo.mjs"
   },
   "license": "ISC",
   "dependencies": {
