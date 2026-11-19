@@ -71,6 +71,8 @@ Three things go to the user, not one:
 
 State what was simplified and what you could not verify.
 
+For a new channel, also offer a **profile picture**: `node tools/render.mjs avatar` writes `out/avatar.png` (1080x1080, set up in `AVATAR` in the timeline). Keep it text-free and built from one bold shape - a close-up of the subject, half outside and half inside, inside a two-tone ring - because it is shown as a circle only a few dozen pixels wide. Check it cropped to a circle at 48 px before sending.
+
 ## Style rules
 
 These came out of repeated rounds of feedback; breaking them is what made earlier versions get rejected. `references/style.md` gives the reasoning and the details.

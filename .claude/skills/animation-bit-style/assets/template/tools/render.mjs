@@ -3,6 +3,7 @@
 //   node tools/render.mjs frames [first last]    -> frames as two PNG layers
 //   node tools/render.mjs bench 30 366 ...        -> time individual frames
 //   node tools/render.mjs cover                   -> the cover image, out/cover.png
+//   node tools/render.mjs avatar                  -> the channel profile picture, out/avatar.png
 // env: QUERY="font=Kanit&smooth=1&motion=2" selects the look
 //      GPU=1     render with the computer's graphics card (opens a browser window)
 //      ANGLE=gl  graphics backend to use with GPU=1 (default: the browser's own choice)
@@ -38,7 +39,8 @@ const server = http.createServer((req, res) => {
 });
 await new Promise((r) => server.listen(0, '127.0.0.1', r));
 const [mode, ...rest] = process.argv.slice(2);
-const query = mode === 'cover' ? `${QUERY}${QUERY ? '&' : ''}cover=1` : QUERY;
+const still = mode === 'cover' || mode === 'avatar' ? `${mode}=1` : '';
+const query = [QUERY, still].filter(Boolean).join('&');
 const url = `http://127.0.0.1:${server.address().port}/index.html?${query}`;
 
 const GPU = process.env.GPU === '1';
@@ -113,6 +115,21 @@ if (mode === 'preview') {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, b64(await page.evaluate(() => document.getElementById('out').toDataURL('image/png'))));
   console.log(`cover: ${file}`);
+} else if (mode === 'avatar') {
+  const info = await page.evaluate('window.clipInfo');
+  await page.evaluate((n) => window.renderFrame(n), info.coverFrame);
+  // the middle square of the frame
+  const data = await page.evaluate(() => {
+    const src = document.getElementById('out');
+    const c = document.createElement('canvas');
+    c.width = c.height = src.width;
+    c.getContext('2d').drawImage(src, 0, -(src.height - src.width) / 2);
+    return c.toDataURL('image/png');
+  });
+  const file = process.env.AVATAR_OUT || path.join(ROOT, 'out', 'avatar.png');
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, b64(data));
+  console.log(`avatar: ${file}`);
 } else if (mode === 'bench') {
   let total = 0;
   const out = [];

@@ -21,7 +21,7 @@ npm run preview -- 0 180 369   # ดูเฟรมที่ต้องกา�
 
 บน Windows PowerShell ถ้าขึ้นว่า `npm.ps1 cannot be loaded because running scripts is disabled` ให้พิมพ์ `npm.cmd` แทน `npm` (เช่น `npm.cmd run build:gpu`)
 
-ผลลัพธ์อยู่ที่ `out/shoulder-clip.mp4` และปกคลิปที่ `out/cover.png` (สร้างปกอย่างเดียวได้ด้วย `npm run cover` แก้ข้อความและมุมกล้องของปกที่ `COVER` ใน `src/timeline.js`) ตอนเริ่ม โปรแกรมจะพิมพ์บรรทัด `graphics: ...` บอกว่ากำลังใช้การ์ดจอตัวไหน
+ผลลัพธ์อยู่ที่ `out/shoulder-clip.mp4` และปกคลิปที่ `out/cover.png` (สร้างปกอย่างเดียวได้ด้วย `npm run cover` และรูปโปรไฟล์ช่องด้วย `npm run avatar` ได้ไฟล์ `out/avatar.png` แก้ข้อความและมุมกล้องของปกที่ `COVER` ใน `src/timeline.js`) ตอนเริ่ม โปรแกรมจะพิมพ์บรรทัด `graphics: ...` บอกว่ากำลังใช้การ์ดจอตัวไหน
 
 ถ้า `build:gpu` ค้างที่เฟรมแรกนานเกินไปหรือภาพผิดปกติ ลองเปลี่ยนตัวขับกราฟิก: `npm run build:gpu -- --angle=gl` (หรือ `d3d11`, `vulkan`) และเลือกเบราว์เซอร์ได้ด้วย `--browser=msedge`
 

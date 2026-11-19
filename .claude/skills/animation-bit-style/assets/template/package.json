@@ -7,7 +7,8 @@
     "build:gpu": "node tools/build.mjs --gpu",
     "build:hud": "node tools/build.mjs --hud",
     "preview": "node tools/render.mjs preview",
-    "cover": "node tools/render.mjs cover"
+    "cover": "node tools/render.mjs cover",
+    "avatar": "node tools/render.mjs avatar"
   },
   "license": "ISC",
   "dependencies": {

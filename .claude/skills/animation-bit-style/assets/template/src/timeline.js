@@ -239,6 +239,17 @@ export const COVER = {
   footer: '3 ท่า · ดูจบใน 30 วิ',
 };
 
+// Channel profile picture: a square, text-free close-up that still reads at thumbnail size.
+// Rendered by "npm run avatar" to out/avatar.png (1080x1080; platforms crop it to a circle).
+export const AVATAR = {
+  t: 7.2,
+  split: true,
+  xray: 0.5,
+  act: [0.9, 0.9, 0.9],
+  cam: { az: 0, el: 4, d: 2.15, tx: 0.0, ty: 1.7, tz: 0.0 },
+  ring: ['#ff4fa8', '#3fd9f2'], // colours of the left and right half of the border ring
+};
+
 // Moments the soundtrack reacts to.
 export const EVENTS = {
   captions: CAPTIONS.map((c) => c.t0),

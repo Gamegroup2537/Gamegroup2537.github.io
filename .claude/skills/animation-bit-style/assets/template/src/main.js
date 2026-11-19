@@ -1,6 +1,6 @@
 import { createScene } from './scene.js';
 import { createHud, HW, HH } from './hud.js';
-import { FPS, FRAMES, COVER } from './timeline.js';
+import { FPS, FRAMES, COVER, AVATAR } from './timeline.js';
 
 const params = new URLSearchParams(location.search);
 const PIX = Number(params.get('pix') || 3); // size of one 3D "pixel" in the final 1080x1920 frame
@@ -8,13 +8,17 @@ const FONT = params.get('font') || 'Kanit';
 const SMOOTH = params.get('smooth') === '1';
 const MOTION = Number(params.get('motion') ?? 1);
 const MODEL = params.get('model') || 'a';
-const COVER_MODE = params.get('cover') === '1'; // render the cover image instead of the clip
-// for trying cover compositions: cam=az,el,d,tx,ty,tz and ct=seconds override the COVER settings
+const AVATAR_MODE = params.get('avatar') === '1'; // render the square profile picture
+const COVER_MODE = params.get('cover') === '1' || AVATAR_MODE; // render a still instead of the clip
+const STILL = AVATAR_MODE ? AVATAR : COVER;
+// for trying compositions: cam=az,el,d,tx,ty,tz, ct=seconds, split=0|1 and cx=0..1 override the settings
+if (params.get('split')) STILL.split = params.get('split') === '1';
+if (params.get('cx')) STILL.xray = Number(params.get('cx'));
 if (COVER_MODE && params.get('cam')) {
   const [az, el, d, tx, ty, tz] = params.get('cam').split(',').map(Number);
-  COVER.cam = { az, el, d, tx, ty, tz };
+  STILL.cam = { az, el, d, tx, ty, tz };
 }
-if (COVER_MODE && params.get('ct')) COVER.t = Number(params.get('ct'));
+if (COVER_MODE && params.get('ct')) STILL.t = Number(params.get('ct'));
 const HUD_ONLY = params.get('hud') === '1'; // skip the slow 3D pass when only the HUD changed
 const W = Math.round(1080 / PIX);
 const H = Math.round(1920 / PIX);
@@ -29,7 +33,7 @@ bg.height = H;
   x.fillStyle = '#05070f';
   x.fillRect(0, 0, W, H);
   const cx = W / 2;
-  const cy = H * 0.4;
+  const cy = H * (AVATAR_MODE ? 0.5 : 0.4);
   const steps = [
     [1.05, 0.66, '#070a17'],
     [0.86, 0.54, '#0a0e21'],
@@ -66,7 +70,7 @@ await Promise.all([
 ]);
 const scene = createScene(W, H, bg, {
   forceXray: params.get('xray') === null ? null : Number(params.get('xray')),
-  cover: COVER_MODE ? COVER : null,
+  cover: COVER_MODE ? STILL : null,
 });
 const hud = createHud({ font: FONT, smooth: SMOOTH, motion: MOTION, tag: params.get('tag') || '' });
 
@@ -100,7 +104,8 @@ window.renderFrame = (f) => {
     scene.render();
     sctx.drawImage(scene.canvas, 0, 0);
   }
-  if (COVER_MODE) hud.drawCover(COVER, scene.project);
+  if (AVATAR_MODE) hud.drawAvatar(AVATAR);
+  else if (COVER_MODE) hud.drawCover(COVER, scene.project);
   else hud.draw(t, scene.state, scene.project, scene.trail(HW, HH));
   octx.drawImage(sceneCanvas, 0, 0, out.width, out.height);
   octx.drawImage(hud.canvas, 0, 0, out.width, out.height);
@@ -120,7 +125,7 @@ const gpuName = (() => {
     return 'unknown';
   }
 })();
-window.clipInfo = { W, H, HW, HH, FPS, FRAMES, gpu: gpuName, coverFrame: Math.round(COVER.t * FPS) };
+window.clipInfo = { W, H, HW, HH, FPS, FRAMES, gpu: gpuName, coverFrame: Math.round(STILL.t * FPS) };
 window.ready = true;
 
 // live preview when opened in a normal browser

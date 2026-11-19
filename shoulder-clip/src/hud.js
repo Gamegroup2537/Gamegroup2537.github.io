@@ -880,5 +880,25 @@ export function createHud({ font = 'Chakra Petch', smooth = false, motion = 0, t
     m.drawImage(scratch, 0, 0);
   }
 
-  return { canvas, draw, drawCover };
+  // ---------------------------------------------------------------- profile picture
+  // Only a two-tone ring: platforms crop the square to a circle, and the ring keeps the
+  // picture from melting into a dark page.
+  function drawAvatar(a) {
+    m.clearRect(0, 0, HW * S, HH * S);
+    g.clearRect(0, 0, HW, HH);
+    if (a.ring) {
+      const cx = HW / 2;
+      const cy = HH / 2;
+      for (let r = 250; r <= 262; r += 1) {
+        const steps = Math.ceil(r * 7);
+        for (let i = 0; i < steps; i++) {
+          const an = (i / steps) * Math.PI * 2;
+          const x = Math.round(cx + Math.cos(an) * r);
+          rect(x, Math.round(cy + Math.sin(an) * r), 2, 2, x < cx ? a.ring[0] : a.ring[1]);
+        }
+      }
+    }
+    m.drawImage(scratch, 0, 0);
+  }
+  return { canvas, draw, drawCover, drawAvatar };
 }
